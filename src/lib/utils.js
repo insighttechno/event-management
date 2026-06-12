@@ -21,6 +21,11 @@ export function formatDate(value) {
   });
 }
 
+export function formatFileSize(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 export function nextSequentialId(items, prefix) {
   const max = items.reduce((acc, item) => {
     const num = parseInt(String(item.id).split("-").pop(), 10);
