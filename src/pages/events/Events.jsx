@@ -15,8 +15,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { events as initialEvents, eventStatuses } from '@/data/events'
-import { formatCurrency, formatDate, nextSequentialId } from '@/lib/utils'
+import { eventStatuses } from '@/data/events'
+import { eventsService } from '@/services/events'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 const eventFields = [
   { name: 'name', label: 'Event name', span: 'full', required: true },
@@ -43,7 +44,7 @@ const emptyEvent = {
 }
 
 export default function Events() {
-  const [events, setEvents] = useState(initialEvents)
+  const [events, setEvents] = useState(() => eventsService.list())
   const [formOpen, setFormOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -66,23 +67,18 @@ export default function Events() {
     }
 
     if (editingEvent) {
-      setEvents((prev) =>
-        prev.map((event) => (event.id === editingEvent.id ? { ...event, ...payload } : event))
-      )
+      eventsService.update(editingEvent.id, payload)
       toast.success(`Event "${payload.name}" updated.`)
     } else {
-      const newEvent = {
-        ...payload,
-        id: nextSequentialId(events, 'E'),
-        milestones: [],
-      }
-      setEvents((prev) => [newEvent, ...prev])
+      eventsService.create({ ...payload, milestones: [] })
       toast.success(`Event "${payload.name}" added.`)
     }
+    setEvents(eventsService.list())
   }
 
   const handleDelete = () => {
-    setEvents((prev) => prev.filter((event) => event.id !== deleteTarget.id))
+    eventsService.remove(deleteTarget.id)
+    setEvents(eventsService.list())
     toast.success(`Event "${deleteTarget.name}" deleted.`)
   }
 

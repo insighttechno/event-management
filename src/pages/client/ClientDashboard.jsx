@@ -25,8 +25,13 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { events } from '@/data/events'
-import { contracts, invoices, galleries, approvals } from '@/data/finance'
+import { eventsService } from '@/services/events'
+import {
+  contractsService,
+  invoicesService,
+  galleriesService,
+  approvalsService,
+} from '@/services/finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 function daysUntil(date) {
@@ -82,7 +87,11 @@ const quickLinks = [
 
 export default function ClientDashboard() {
   const { user } = useAuth()
-  const event = events[0]
+  const event = eventsService.list()[0]
+  const contracts = contractsService.list()
+  const invoices = invoicesService.list()
+  const galleries = galleriesService.list()
+  const approvals = approvalsService.list()
   const days = daysUntil(event.date)
   const completed = event.milestones.filter((m) => m.done).length
   const progress = Math.round((completed / event.milestones.length) * 100)

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Download, Eye, FileText, History, Image } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -19,20 +19,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { documents } from '@/data/documents'
-import { events } from '@/data/events'
+import { documentsService } from '@/services/documents'
+import { eventsService } from '@/services/events'
 import { formatDate } from '@/lib/utils'
 
 export default function ClientDocuments() {
-  const event = events[0]
-  const sharedDocs = useMemo(
-    () => documents.filter((doc) => doc.sharedWithClient && doc.client === event.client),
-    [event.client]
+  const event = eventsService.list()[0]
+  const documents = documentsService.list()
+  const sharedDocs = documents.filter(
+    (doc) => doc.sharedWithClient && doc.client === event.client
   )
-  const folders = useMemo(
-    () => [...new Set(sharedDocs.map((doc) => doc.folder))],
-    [sharedDocs]
-  )
+  const folders = [...new Set(sharedDocs.map((doc) => doc.folder))]
 
   const [folderFilter, setFolderFilter] = useState('All')
   const [previewTarget, setPreviewTarget] = useState(null)

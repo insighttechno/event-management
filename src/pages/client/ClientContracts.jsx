@@ -23,8 +23,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { events } from '@/data/events'
-import { contracts } from '@/data/finance'
+import { eventsService } from '@/services/events'
+import { contractsService } from '@/services/finance'
 import { formatDate } from '@/lib/utils'
 
 const statusVariant = {
@@ -54,9 +54,9 @@ By signing below, both parties agree to the terms outlined in this agreement.
 `
 
 export default function ClientContracts() {
-  const event = events[0]
-  const [myContracts, setMyContracts] = useState(
-    contracts.filter((c) => c.event === event.name)
+  const event = eventsService.list()[0]
+  const [myContracts, setMyContracts] = useState(() =>
+    contractsService.list().filter((c) => c.event === event.name)
   )
   const [viewTarget, setViewTarget] = useState(null)
   const [signTarget, setSignTarget] = useState(null)
@@ -65,13 +65,11 @@ export default function ClientContracts() {
   const signedContracts = myContracts.filter((c) => c.status === 'Signed')
 
   const markSigned = (contract) => {
-    setMyContracts((prev) =>
-      prev.map((item) =>
-        item.id === contract.id
-          ? { ...item, status: 'Signed', signedDate: new Date().toISOString().slice(0, 10) }
-          : item
-      )
-    )
+    contractsService.update(contract.id, {
+      status: 'Signed',
+      signedDate: new Date().toISOString().slice(0, 10),
+    })
+    setMyContracts(contractsService.list().filter((c) => c.event === event.name))
   }
 
   const downloadContract = (contract) => {

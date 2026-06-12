@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { events as initialEvents } from '@/data/events'
+import { eventsService } from '@/services/events'
 import { cn, formatDate } from '@/lib/utils'
 
 const milestoneFields = [
@@ -25,7 +25,7 @@ const milestoneFields = [
 const emptyMilestone = { title: '', date: '' }
 
 export default function Timeline() {
-  const [events, setEvents] = useState(initialEvents)
+  const [events, setEvents] = useState(() => eventsService.list())
   const [milestoneDialog, setMilestoneDialog] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [approvalStatus, setApprovalStatus] = useState({})
@@ -76,43 +76,38 @@ export default function Timeline() {
     })
   }
 
+  const updateMilestones = (eventId, compute) => {
+    const event = events.find((item) => item.id === eventId)
+    if (!event) return
+    eventsService.update(eventId, { milestones: compute(event.milestones ?? []) })
+    setEvents(eventsService.list())
+  }
+
   const handleMilestoneSubmit = (values) => {
     const { eventId, index } = milestoneDialog
-    setEvents((prev) =>
-      prev.map((event) => {
-        if (event.id !== eventId) return event
-        const milestones = [...(event.milestones ?? [])]
-        if (index === null) {
-          milestones.push({ ...values, done: false })
-        } else {
-          milestones[index] = { ...milestones[index], ...values }
-        }
-        return { ...event, milestones }
-      })
-    )
+    updateMilestones(eventId, (milestones) => {
+      const next = [...milestones]
+      if (index === null) {
+        next.push({ ...values, done: false })
+      } else {
+        next[index] = { ...next[index], ...values }
+      }
+      return next
+    })
     toast.success(index === null ? 'Milestone added.' : 'Milestone updated.')
   }
 
   const toggleMilestone = (eventId, index) => {
-    setEvents((prev) =>
-      prev.map((event) => {
-        if (event.id !== eventId) return event
-        const milestones = event.milestones.map((milestone, i) =>
-          i === index ? { ...milestone, done: !milestone.done } : milestone
-        )
-        return { ...event, milestones }
-      })
+    updateMilestones(eventId, (milestones) =>
+      milestones.map((milestone, i) =>
+        i === index ? { ...milestone, done: !milestone.done } : milestone
+      )
     )
   }
 
   const handleDeleteMilestone = () => {
     const { eventId, index } = deleteTarget
-    setEvents((prev) =>
-      prev.map((event) => {
-        if (event.id !== eventId) return event
-        return { ...event, milestones: event.milestones.filter((_, i) => i !== index) }
-      })
-    )
+    updateMilestones(eventId, (milestones) => milestones.filter((_, i) => i !== index))
     toast.success('Milestone deleted.')
   }
 

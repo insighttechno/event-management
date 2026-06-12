@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { useTenant } from '@/hooks/use-tenant'
 import { adminNavItems } from '@/lib/navigation'
 import { SidebarBrand, SidebarNav, SidebarUser } from './Sidebar'
 import { Topbar } from './Topbar'
@@ -8,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 
 export default function AdminLayout() {
   const { role } = useAuth()
+  const { tenant } = useTenant()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   if (!role || role === 'Client') {
@@ -36,7 +38,8 @@ export default function AdminLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+        {/* Keyed by tenant so every page remounts (and re-reads services) on workspace switch */}
+        <main key={tenant.id} className="flex-1 overflow-y-auto p-4 lg:p-8">
           <Outlet />
         </main>
       </div>

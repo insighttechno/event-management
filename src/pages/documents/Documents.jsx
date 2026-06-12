@@ -43,13 +43,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { contracts as initialContracts } from '@/data/finance'
-import {
-  documents as initialDocuments,
-  documentFolders,
-  contractTemplates,
-} from '@/data/documents'
-import { formatDate, nextSequentialId } from '@/lib/utils'
+import { documentFolders } from '@/data/documents'
+import { documentsService, templatesService } from '@/services/documents'
+import { contractsService } from '@/services/finance'
+import { formatDate } from '@/lib/utils'
 
 const statusVariant = {
   Signed: 'secondary',
@@ -68,8 +65,9 @@ const generateFields = [
 ]
 
 export default function Documents() {
-  const [contracts, setContracts] = useState(initialContracts)
-  const [documents, setDocuments] = useState(initialDocuments)
+  const contractTemplates = templatesService.list()
+  const [contracts, setContracts] = useState(() => contractsService.list())
+  const [documents, setDocuments] = useState(() => documentsService.list())
   const [uploadOpen, setUploadOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [folderFilter, setFolderFilter] = useState('All')
@@ -85,24 +83,17 @@ export default function Documents() {
   )
 
   const handleUpload = (files, { folder, client }) => {
-    setDocuments((prev) => {
-      let docs = prev
-      for (const file of files) {
-        docs = [
-          {
-            id: nextSequentialId(docs, 'D'),
-            name: file.name,
-            size: formatFileSize(file.size),
-            folder,
-            client,
-            uploadedAt: new Date().toISOString().slice(0, 10),
-            sharedWithClient: false,
-          },
-          ...docs,
-        ]
-      }
-      return docs
-    })
+    for (const file of files) {
+      documentsService.create({
+        name: file.name,
+        size: formatFileSize(file.size),
+        folder,
+        client,
+        uploadedAt: new Date().toISOString().slice(0, 10),
+        sharedWithClient: false,
+      })
+    }
+    setDocuments(documentsService.list())
     toast.success(
       files.length === 1
         ? `"${files[0].name}" uploaded.`
@@ -111,11 +102,8 @@ export default function Documents() {
   }
 
   const toggleShare = (doc) => {
-    setDocuments((prev) =>
-      prev.map((item) =>
-        item.id === doc.id ? { ...item, sharedWithClient: !item.sharedWithClient } : item
-      )
-    )
+    documentsService.update(doc.id, { sharedWithClient: !doc.sharedWithClient })
+    setDocuments(documentsService.list())
     toast.success(
       doc.sharedWithClient
         ? `"${doc.name}" is no longer shared with the client.`
@@ -128,30 +116,28 @@ export default function Documents() {
   }
 
   const handleDelete = () => {
-    setDocuments((prev) => prev.filter((doc) => doc.id !== deleteTarget.id))
+    documentsService.remove(deleteTarget.id)
+    setDocuments(documentsService.list())
     toast.success(`"${deleteTarget.name}" deleted.`)
   }
 
   const generateContract = (values) => {
-    const newContract = {
+    contractsService.create({
       ...values,
-      id: nextSequentialId(contracts, 'C'),
       status: 'Draft',
       sentDate: null,
       signedDate: null,
-    }
-    setContracts((prev) => [newContract, ...prev])
+    })
+    setContracts(contractsService.list())
     toast.success(`"${values.title}" generated from the "${generateTemplate.name}" template.`)
   }
 
   const markSent = (contract) => {
-    setContracts((prev) =>
-      prev.map((item) =>
-        item.id === contract.id
-          ? { ...item, status: 'Awaiting Signature', sentDate: new Date().toISOString().slice(0, 10) }
-          : item
-      )
-    )
+    contractsService.update(contract.id, {
+      status: 'Awaiting Signature',
+      sentDate: new Date().toISOString().slice(0, 10),
+    })
+    setContracts(contractsService.list())
   }
 
   return (

@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { events } from '@/data/events'
+import { eventsService } from '@/services/events'
 import { formatDate } from '@/lib/utils'
 
 // Demo day-of schedule with vendor arrivals (no backend yet).
@@ -39,7 +39,7 @@ const dayOfSchedule = [
 ]
 
 export default function ClientTimeline() {
-  const event = events[0]
+  const event = eventsService.list()[0]
   const [requestOpen, setRequestOpen] = useState(false)
   const [requests, setRequests] = useState([])
 

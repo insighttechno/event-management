@@ -22,8 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { events } from '@/data/events'
-import { invoices } from '@/data/finance'
+import { eventsService } from '@/services/events'
+import { invoicesService } from '@/services/finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 const statusVariant = {
@@ -43,9 +43,9 @@ const initialHistory = [
 ]
 
 export default function ClientInvoices() {
-  const event = events[0]
-  const [myInvoices, setMyInvoices] = useState(
-    invoices.filter((i) => i.event === event.name)
+  const event = eventsService.list()[0]
+  const [myInvoices, setMyInvoices] = useState(() =>
+    invoicesService.list().filter((i) => i.event === event.name)
   )
   const [history, setHistory] = useState(initialHistory)
   const [payTarget, setPayTarget] = useState(null)

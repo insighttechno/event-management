@@ -1,0 +1,122 @@
+// SaaS layer: every company using the CRM is a "tenant" (workspace).
+// When a real backend exists, this file becomes the /api/tenants response.
+
+export const plans = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: 49,
+    description: 'For small teams getting started',
+    limits: { teamMembers: 5, events: 15, storageGb: 10 },
+    features: [
+      'Up to 5 team members',
+      'Up to 15 active events',
+      '10 GB document storage',
+      'Lead & event management',
+      'Client portal',
+    ],
+  },
+  {
+    id: 'professional',
+    name: 'Professional',
+    price: 99,
+    description: 'For growing event businesses',
+    limits: { teamMembers: 15, events: 50, storageGb: 100 },
+    features: [
+      'Up to 15 team members',
+      'Up to 50 active events',
+      '100 GB document storage',
+      'E-signature workflow',
+      'Photography & gallery module',
+      'Priority support',
+    ],
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: 249,
+    description: 'For agencies and multi-brand teams',
+    limits: { teamMembers: Infinity, events: Infinity, storageGb: 1000 },
+    features: [
+      'Unlimited team members',
+      'Unlimited events',
+      '1 TB document storage',
+      'White-label branding',
+      'Dedicated account manager',
+    ],
+  },
+]
+
+export const tenants = [
+  {
+    id: 'T-1',
+    name: 'Family Affair Key West',
+    tagline: '& Senses At Play',
+    initials: 'FA',
+    brandColor: 'oklch(0.65 0.16 35)',
+    subdomain: 'familyaffair',
+    contactEmail: 'hello@familyaffairkeywest.com',
+    phone: '(305) 555-0100',
+    address: '500 Duval Street, Key West, FL 33040',
+    plan: 'professional',
+    status: 'Active',
+    createdAt: '2026-01-05',
+    // seeded: this workspace has demo data and appears in the workspace switcher
+    seeded: true,
+  },
+  {
+    id: 'T-2',
+    name: 'Coastal Events Miami',
+    tagline: 'Weddings & Celebrations',
+    initials: 'CE',
+    brandColor: 'oklch(0.55 0.12 220)',
+    subdomain: 'coastalmiami',
+    contactEmail: 'team@coastaleventsmiami.com',
+    phone: '(786) 555-0144',
+    address: '1200 Ocean Drive, Miami Beach, FL 33139',
+    plan: 'starter',
+    status: 'Active',
+    createdAt: '2026-03-18',
+    seeded: true,
+  },
+  {
+    id: 'T-3',
+    name: 'Bloom & Vine Events',
+    tagline: 'Garden Weddings',
+    initials: 'BV',
+    brandColor: 'oklch(0.55 0.14 150)',
+    subdomain: 'bloomvine',
+    contactEmail: 'hello@bloomvine.events',
+    phone: '(407) 555-0188',
+    address: 'Orlando, FL',
+    plan: 'starter',
+    status: 'Trial',
+    createdAt: '2026-05-29',
+    seeded: false,
+  },
+  {
+    id: 'T-4',
+    name: 'Grand Gala Productions',
+    tagline: 'Corporate Events',
+    initials: 'GG',
+    brandColor: 'oklch(0.5 0.1 280)',
+    subdomain: 'grandgala',
+    contactEmail: 'ops@grandgala.com',
+    phone: '(212) 555-0122',
+    address: 'New York, NY',
+    plan: 'professional',
+    status: 'Suspended',
+    createdAt: '2026-02-10',
+    seeded: false,
+  },
+]
+
+// Platform-level revenue for the Super Admin console (dummy).
+export const platformRevenue = [
+  { month: 'Jan', mrr: 49 },
+  { month: 'Feb', mrr: 148 },
+  { month: 'Mar', mrr: 197 },
+  { month: 'Apr', mrr: 246 },
+  { month: 'May', mrr: 246 },
+  { month: 'Jun', mrr: 295 },
+]

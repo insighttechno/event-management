@@ -1,6 +1,6 @@
 export const documentFolders = ['Contracts', 'Invoices', 'Floor Plans', 'Inspiration', 'Permits']
 
-export const contractTemplates = [
+const familyAffairTemplates = [
   {
     id: 'CT-1',
     name: 'Full Service Wedding Contract',
@@ -27,7 +27,27 @@ export const contractTemplates = [
   },
 ]
 
-export const documents = [
+const coastalTemplates = [
+  {
+    id: 'CT-5',
+    name: 'Luxury Wedding Package Contract',
+    description: 'Full-service planning for 100+ guest celebrations.',
+    updatedAt: '2026-04-02',
+  },
+  {
+    id: 'CT-6',
+    name: 'Corporate Event Agreement',
+    description: 'Offsites, galas and company celebrations.',
+    updatedAt: '2026-05-11',
+  },
+]
+
+export const contractTemplates = [
+  ...familyAffairTemplates.map((template) => ({ ...template, tenantId: 'T-1' })),
+  ...coastalTemplates.map((template) => ({ ...template, tenantId: 'T-2' })),
+]
+
+const familyAffairDocuments = [
   {
     id: 'D-501',
     name: 'Wedding Planning Agreement.pdf',
@@ -82,4 +102,31 @@ export const documents = [
     uploadedAt: '2026-02-01',
     sharedWithClient: true,
   },
+]
+
+// Seed data for the second demo workspace (Coastal Events Miami).
+const coastalDocuments = [
+  {
+    id: 'D-601',
+    name: 'Fuentes Wedding Agreement.pdf',
+    folder: 'Contracts',
+    client: 'Isabella & Diego Fuentes',
+    size: '380 KB',
+    uploadedAt: '2026-05-02',
+    sharedWithClient: true,
+  },
+  {
+    id: 'D-602',
+    name: 'Surfcomber Ballroom Layout.pdf',
+    folder: 'Floor Plans',
+    client: 'Isabella & Diego Fuentes',
+    size: '1.6 MB',
+    uploadedAt: '2026-06-01',
+    sharedWithClient: false,
+  },
+]
+
+export const documents = [
+  ...familyAffairDocuments.map((doc) => ({ ...doc, tenantId: 'T-1' })),
+  ...coastalDocuments.map((doc) => ({ ...doc, tenantId: 'T-2' })),
 ]

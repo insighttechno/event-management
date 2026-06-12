@@ -1,4 +1,4 @@
-export const events = [
+const familyAffairEvents = [
   {
     id: 'E-2031',
     name: 'Whitfield Wedding',
@@ -88,6 +88,51 @@ export const events = [
   },
 ]
 
+// Seed data for the second demo workspace (Coastal Events Miami).
+const coastalEvents = [
+  {
+    id: 'E-3001',
+    name: 'Fuentes Wedding',
+    client: 'Isabella & Diego Fuentes',
+    type: 'Wedding',
+    date: '2026-10-03',
+    venue: 'The Surfcomber, Miami Beach',
+    status: 'Planning',
+    guestCount: 150,
+    budget: 64000,
+    planner: 'Carla Mendes',
+    milestones: [
+      { title: 'Venue booked', date: '2026-04-20', done: true },
+      { title: 'Band shortlist review', date: '2026-07-10', done: false },
+      { title: 'Menu tasting', date: '2026-08-05', done: false },
+      { title: 'Wedding day', date: '2026-10-03', done: false },
+    ],
+  },
+  {
+    id: 'E-3002',
+    name: 'Shah Sangeet Weekend',
+    client: 'Priya & Arjun Shah',
+    type: 'Wedding',
+    date: '2026-12-12',
+    venue: 'Vizcaya Museum & Gardens',
+    status: 'Awaiting Contract',
+    guestCount: 220,
+    budget: 88000,
+    planner: 'Tom Alvarez',
+    milestones: [
+      { title: 'Contract signed', date: '2026-07-01', done: false },
+      { title: 'Mandap design approved', date: '2026-09-15', done: false },
+      { title: 'Sangeet night', date: '2026-12-11', done: false },
+      { title: 'Wedding day', date: '2026-12-12', done: false },
+    ],
+  },
+]
+
+export const events = [
+  ...familyAffairEvents.map((event) => ({ ...event, tenantId: 'T-1' })),
+  ...coastalEvents.map((event) => ({ ...event, tenantId: 'T-2' })),
+]
+
 // Dummy vendor assignments per event (vendor ids from data/vendors.js).
 export const eventVendorAssignments = {
   'E-2031': ['V-101', 'V-104', 'V-110'],
@@ -95,6 +140,8 @@ export const eventVendorAssignments = {
   'E-2027': ['V-101'],
   'E-2019': ['V-104', 'V-115'],
   'E-2008': [],
+  'E-3001': ['V-201', 'V-202'],
+  'E-3002': [],
 }
 
 // Dummy notes per event.
@@ -111,6 +158,10 @@ export const eventNotes = {
   ],
   'E-2019': [],
   'E-2008': [],
+  'E-3001': [
+    { id: 'N-1', text: 'Couple wants a salsa band for the reception, DJ for after-party.', by: 'Carla Mendes', date: '2026-05-30' },
+  ],
+  'E-3002': [],
 }
 
 export const eventStatuses = [

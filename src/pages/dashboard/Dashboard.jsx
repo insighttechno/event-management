@@ -26,10 +26,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAuth } from '@/hooks/use-auth'
-import { leads } from '@/data/leads'
-import { events } from '@/data/events'
-import { tasks } from '@/data/tasks'
-import { invoices, contracts, monthlyRevenue } from '@/data/finance'
+import { useTenant } from '@/hooks/use-tenant'
+import { leadsService } from '@/services/leads'
+import { eventsService } from '@/services/events'
+import { tasksService } from '@/services/tasks'
+import { invoicesService, contractsService, revenueService } from '@/services/finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 function countBy(items, key) {
@@ -41,6 +42,14 @@ function countBy(items, key) {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { tenant } = useTenant()
+
+  const leads = leadsService.list()
+  const events = eventsService.list()
+  const tasks = tasksService.list()
+  const invoices = invoicesService.list()
+  const contracts = contractsService.list()
+  const monthlyRevenue = revenueService.monthly()
 
   const newInquiries = leads.filter((lead) => lead.stage === 'New Inquiry')
   const upcomingEvents = [...events]
@@ -73,7 +82,8 @@ export default function Dashboard() {
             Welcome back, {user?.name?.split(' ')[0]}
           </h1>
           <p className="mt-1 text-sm text-white/80">
-            Here's what's happening across Family Affair Key West &amp; Senses At Play.
+            Here's what's happening across {tenant.name}
+            {tenant.tagline ? ` ${tenant.tagline}` : ''}.
           </p>
         </div>
       </div>
@@ -90,7 +100,7 @@ export default function Dashboard() {
           label="Upcoming Events"
           value={events.length}
           icon={CalendarHeart}
-          hint={`Next: ${formatDate(upcomingEvents[0]?.date)}`}
+          hint={upcomingEvents[0] ? `Next: ${formatDate(upcomingEvents[0].date)}` : 'No events yet'}
           accent="secondary"
         />
         <StatCard

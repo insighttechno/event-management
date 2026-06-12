@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -31,14 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { events, eventVendorAssignments, eventNotes } from '@/data/events'
-import { vendors } from '@/data/vendors'
-import { contracts } from '@/data/finance'
+import { eventsService } from '@/services/events'
+import { vendorsService } from '@/services/vendors'
+import { contractsService } from '@/services/finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 export default function EventDetail() {
   const { id } = useParams()
-  const event = events.find((item) => item.id === id)
+  const event = eventsService.get(id)
 
   if (!event) {
     return <Navigate to="/admin/events" replace />
@@ -48,22 +48,30 @@ export default function EventDetail() {
 }
 
 function EventDetailView({ event }) {
-  const [milestones, setMilestones] = useState(event.milestones)
-  const [assignedVendorIds, setAssignedVendorIds] = useState(
-    eventVendorAssignments[event.id] ?? []
+  const vendors = vendorsService.list()
+  const contracts = contractsService.list()
+  const [milestones, setMilestonesState] = useState(event.milestones)
+  const [assignedVendorIds, setAssignedVendorIds] = useState(() =>
+    eventsService.vendorIdsFor(event.id)
   )
-  const [notes, setNotes] = useState(eventNotes[event.id] ?? [])
+  const [notes, setNotes] = useState(() => eventsService.notesFor(event.id))
   const [newMilestone, setNewMilestone] = useState({ title: '', date: '' })
   const [vendorToAssign, setVendorToAssign] = useState('')
   const [newNote, setNewNote] = useState('')
 
+  // Local milestone updates write through to the service so they survive navigation.
+  const setMilestones = (updater) => {
+    setMilestonesState((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      eventsService.update(event.id, { milestones: next })
+      return next
+    })
+  }
+
   const doneCount = milestones.filter((m) => m.done).length
   const progress = milestones.length ? Math.round((doneCount / milestones.length) * 100) : 0
 
-  const eventDocuments = useMemo(
-    () => contracts.filter((contract) => contract.event === event.name),
-    [event.name]
-  )
+  const eventDocuments = contracts.filter((contract) => contract.event === event.name)
 
   const assignedVendors = vendors.filter((vendor) => assignedVendorIds.includes(vendor.id))
   const availableVendors = vendors.filter((vendor) => !assignedVendorIds.includes(vendor.id))
@@ -94,29 +102,28 @@ function EventDetailView({ event }) {
   const assignVendor = () => {
     if (!vendorToAssign) return
     const vendor = vendors.find((v) => v.id === vendorToAssign)
-    setAssignedVendorIds((prev) => [...prev, vendorToAssign])
+    eventsService.assignVendor(event.id, vendorToAssign)
+    setAssignedVendorIds(eventsService.vendorIdsFor(event.id))
     setVendorToAssign('')
     toast.success(`${vendor.name} assigned to this event.`)
   }
 
   const removeVendor = (vendorId) => {
     const vendor = vendors.find((v) => v.id === vendorId)
-    setAssignedVendorIds((prev) => prev.filter((id) => id !== vendorId))
+    eventsService.unassignVendor(event.id, vendorId)
+    setAssignedVendorIds(eventsService.vendorIdsFor(event.id))
     toast.success(`${vendor.name} removed from this event.`)
   }
 
   const addNote = (e) => {
     e.preventDefault()
     if (!newNote.trim()) return
-    setNotes((prev) => [
-      {
-        id: `N-${prev.length + 1}`,
-        text: newNote.trim(),
-        by: 'You',
-        date: new Date().toISOString().slice(0, 10),
-      },
-      ...prev,
-    ])
+    eventsService.addNote(event.id, {
+      text: newNote.trim(),
+      by: 'You',
+      date: new Date().toISOString().slice(0, 10),
+    })
+    setNotes(eventsService.notesFor(event.id))
     setNewNote('')
     toast.success('Note added.')
   }

@@ -39,8 +39,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { leads as initialLeads, leadStages, leadCommunications } from '@/data/leads'
-import { formatCurrency, formatDate, nextSequentialId } from '@/lib/utils'
+import { leadStages } from '@/data/leads'
+import { leadsService } from '@/services/leads'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 const leadFields = [
   { name: 'name', label: 'Client name', span: 'full', required: true },
@@ -77,8 +78,9 @@ function followUpStatus(lead) {
 }
 
 export default function Leads() {
-  const [leads, setLeads] = useState(initialLeads)
-  const [communications, setCommunications] = useState(leadCommunications)
+  const [leads, setLeads] = useState(() => leadsService.list())
+  // Bumped after logging a communication so the detail sheet re-reads the service.
+  const [, setCommsVersion] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editingLead, setEditingLead] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -109,30 +111,29 @@ export default function Leads() {
     const payload = { ...values, value: Number(values.value) || 0 }
 
     if (editingLead) {
-      setLeads((prev) =>
-        prev.map((lead) => (lead.id === editingLead.id ? { ...lead, ...payload } : lead))
-      )
+      leadsService.update(editingLead.id, payload)
       toast.success(`Lead "${payload.name}" updated.`)
     } else {
-      const newLead = {
+      leadsService.create({
         ...payload,
-        id: nextSequentialId(leads, 'L'),
         createdAt: new Date().toISOString().slice(0, 10),
-      }
-      setLeads((prev) => [newLead, ...prev])
+      })
       toast.success(`Lead "${payload.name}" added.`)
     }
+    setLeads(leadsService.list())
   }
 
   const handleDelete = () => {
-    setLeads((prev) => prev.filter((lead) => lead.id !== deleteTarget.id))
+    leadsService.remove(deleteTarget.id)
+    setLeads(leadsService.list())
     toast.success(`Lead "${deleteTarget.name}" deleted.`)
   }
 
   const moveLeadToStage = (leadId, stage) => {
     const lead = leads.find((item) => item.id === leadId)
     if (!lead || lead.stage === stage) return
-    setLeads((prev) => prev.map((item) => (item.id === leadId ? { ...item, stage } : item)))
+    leadsService.update(leadId, { stage })
+    setLeads(leadsService.list())
     toast.success(`"${lead.name}" moved to ${stage}.`)
   }
 
@@ -141,13 +142,8 @@ export default function Leads() {
   }
 
   const addCommunication = (leadId, entry) => {
-    setCommunications((prev) => ({
-      ...prev,
-      [leadId]: [
-        ...(prev[leadId] ?? []),
-        { ...entry, id: `C-${(prev[leadId]?.length ?? 0) + 1}` },
-      ],
-    }))
+    leadsService.addCommunication(leadId, entry)
+    setCommsVersion((v) => v + 1)
     toast.success('Communication logged.')
   }
 
@@ -375,7 +371,7 @@ export default function Leads() {
 
       <LeadDetailSheet
         lead={detailLead}
-        communications={detailLead ? (communications[detailLead.id] ?? []) : []}
+        communications={detailLead ? leadsService.communicationsFor(detailLead.id) : []}
         onOpenChange={(open) => !open && setDetailLeadId(null)}
         onEdit={() => {
           openEditDialog(detailLead)

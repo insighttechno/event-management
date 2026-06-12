@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
+import { TenantProvider } from '@/context/TenantContext'
 import { Toaster } from '@/components/ui/sonner'
 
 import AdminLayout from '@/components/layout/AdminLayout'
@@ -24,6 +25,9 @@ import Timeline from '@/pages/timeline/Timeline'
 import Team from '@/pages/team/Team'
 import Settings from '@/pages/settings/Settings'
 
+import CompanySignup from '@/pages/saas/CompanySignup'
+import SuperAdmin from '@/pages/saas/SuperAdmin'
+
 import ClientDashboard from '@/pages/client/ClientDashboard'
 import ClientTimeline from '@/pages/client/ClientTimeline'
 import ClientContracts from '@/pages/client/ClientContracts'
@@ -35,8 +39,11 @@ import ClientApprovals from '@/pages/client/ClientApprovals'
 export default function App() {
   return (
     <AuthProvider>
+      <TenantProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/get-started" element={<CompanySignup />} />
+          <Route path="/superadmin" element={<SuperAdmin />} />
           <Route element={<ClientAuthLayout />}>
             <Route path="/" element={<ClientLogin />} />
             <Route path="/register" element={<Register />} />
@@ -79,6 +86,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
       <Toaster />
+      </TenantProvider>
     </AuthProvider>
   )
 }

@@ -1,4 +1,4 @@
-export const tasks = [
+const familyAffairTasks = [
   {
     id: 'T-501',
     title: 'Confirm catering headcount with Conch Republic',
@@ -71,6 +71,42 @@ export const tasks = [
     status: 'To Do',
     priority: 'Medium',
   },
+]
+
+// Seed data for the second demo workspace (Coastal Events Miami).
+const coastalTasks = [
+  {
+    id: 'T-601',
+    title: 'Shortlist three live bands for Fuentes reception',
+    event: 'Fuentes Wedding',
+    assignedTo: 'Carla Mendes',
+    dueDate: '2026-06-19',
+    status: 'In Progress',
+    priority: 'High',
+  },
+  {
+    id: 'T-602',
+    title: 'Send Shah contract for review',
+    event: 'Shah Sangeet Weekend',
+    assignedTo: 'Tom Alvarez',
+    dueDate: '2026-06-17',
+    status: 'To Do',
+    priority: 'High',
+  },
+  {
+    id: 'T-603',
+    title: 'Book Vizcaya site visit with décor team',
+    event: 'Shah Sangeet Weekend',
+    assignedTo: 'Carla Mendes',
+    dueDate: '2026-07-02',
+    status: 'To Do',
+    priority: 'Medium',
+  },
+]
+
+export const tasks = [
+  ...familyAffairTasks.map((task) => ({ ...task, tenantId: 'T-1' })),
+  ...coastalTasks.map((task) => ({ ...task, tenantId: 'T-2' })),
 ]
 
 export const taskStatuses = ['To Do', 'In Progress', 'Done']
