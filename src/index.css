@@ -52,8 +52,9 @@
 
 /*
   Key West tropical palette, inspired by familyaffairkeywest.com & sensesatplay.com:
-  terracotta coral (primary/CTA), persian teal (secondary/ocean), saffron + sandy
-  orange (accents), deep teal-navy (text, sidebar, charts).
+  sage green #719f87 (primary/CTA — matches the client website), persian teal
+  (secondary/ocean), saffron + sandy orange (accents), deep teal-navy (text,
+  sidebar, charts).
 */
 :root {
     --background: oklch(0.99 0.006 80);
@@ -62,7 +63,7 @@
     --card-foreground: oklch(0.32 0.05 220);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.32 0.05 220);
-    --primary: oklch(0.65 0.16 35);
+    --primary: oklch(0.66 0.06 161);
     --primary-foreground: oklch(0.99 0 0);
     --secondary: oklch(0.6 0.09 190);
     --secondary-foreground: oklch(0.99 0 0);
@@ -73,8 +74,8 @@
     --destructive: oklch(0.6 0.2 25);
     --border: oklch(0.92 0.02 75);
     --input: oklch(0.92 0.02 75);
-    --ring: oklch(0.65 0.16 35);
-    --chart-1: oklch(0.65 0.16 35);
+    --ring: oklch(0.66 0.06 161);
+    --chart-1: oklch(0.66 0.06 161);
     --chart-2: oklch(0.6 0.09 190);
     --chart-3: oklch(0.83 0.13 85);
     --chart-4: oklch(0.78 0.12 65);
@@ -82,7 +83,7 @@
     --radius: 0.75rem;
     --sidebar: oklch(0.32 0.05 220);
     --sidebar-foreground: oklch(0.96 0.015 75);
-    --sidebar-primary: oklch(0.65 0.16 35);
+    --sidebar-primary: oklch(0.66 0.06 161);
     --sidebar-primary-foreground: oklch(0.99 0 0);
     --sidebar-accent: oklch(0.4 0.05 215);
     --sidebar-accent-foreground: oklch(0.99 0 0);
@@ -97,7 +98,7 @@
     --card-foreground: oklch(0.96 0.015 75);
     --popover: oklch(0.27 0.035 220);
     --popover-foreground: oklch(0.96 0.015 75);
-    --primary: oklch(0.65 0.16 35);
+    --primary: oklch(0.66 0.06 161);
     --primary-foreground: oklch(0.99 0 0);
     --secondary: oklch(0.6 0.09 190);
     --secondary-foreground: oklch(0.99 0 0);
@@ -108,15 +109,15 @@
     --destructive: oklch(0.65 0.19 25);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.65 0.16 35);
-    --chart-1: oklch(0.65 0.16 35);
+    --ring: oklch(0.66 0.06 161);
+    --chart-1: oklch(0.66 0.06 161);
     --chart-2: oklch(0.6 0.09 190);
     --chart-3: oklch(0.83 0.13 85);
     --chart-4: oklch(0.78 0.12 65);
     --chart-5: oklch(0.7 0.03 80);
     --sidebar: oklch(0.18 0.03 220);
     --sidebar-foreground: oklch(0.96 0.015 75);
-    --sidebar-primary: oklch(0.65 0.16 35);
+    --sidebar-primary: oklch(0.66 0.06 161);
     --sidebar-primary-foreground: oklch(0.99 0 0);
     --sidebar-accent: oklch(0.27 0.035 220);
     --sidebar-accent-foreground: oklch(0.96 0.015 75);
