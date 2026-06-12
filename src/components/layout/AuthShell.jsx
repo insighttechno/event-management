@@ -55,24 +55,24 @@ export function AuthShell({ roles, previewRole, outletContext }) {
             {content.description}
           </p>
 
-          <ul className="mt-6 space-y-2.5">
-            {content.highlights.map((item) => (
-              <li
-                key={item.title}
-                className="group flex items-center gap-3.5 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-lg backdrop-blur-xl transition-all duration-300 hover:translate-x-1 hover:border-accent/50 hover:bg-white/15"
-              >
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-primary shadow-md shadow-primary/30 transition-transform duration-300 group-hover:scale-110">
-                  <item.icon className="size-4.5 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm leading-snug font-semibold">{item.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-primary-foreground/75">
+          <div className="mt-6 overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-xl backdrop-blur-xl">
+            <ul className="grid grid-cols-3 divide-x divide-white/15">
+              {content.highlights.map((item) => (
+                <li
+                  key={item.title}
+                  className="group flex flex-col items-center gap-2 px-3 py-4 text-center transition-colors duration-300 hover:bg-white/10"
+                >
+                  <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary shadow-lg shadow-primary/40 ring-2 ring-white/25 transition-transform duration-300 group-hover:scale-110">
+                    <item.icon className="size-4.5 text-white" />
+                  </div>
+                  <p className="text-sm leading-tight font-semibold">{item.title}</p>
+                  <p className="hidden text-xs leading-snug text-primary-foreground/75 xl:block">
                     {item.description}
                   </p>
-                </div>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         <div
