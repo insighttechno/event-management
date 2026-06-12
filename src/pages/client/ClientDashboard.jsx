@@ -85,7 +85,9 @@ export default function ClientDashboard() {
   const event = events[0]
   const days = daysUntil(event.date)
   const completed = event.milestones.filter((m) => m.done).length
-  const progress = Math.round((completed / event.milestones.length) * 100)
+  const progress = event.milestones.length
+    ? Math.round((completed / event.milestones.length) * 100)
+    : 0
   const firstName = user?.name?.split(/[\s&]+/)[0] ?? 'there'
 
   const myContract = contracts.find((c) => c.event === event.name)
@@ -133,7 +135,7 @@ export default function ClientDashboard() {
   return (
     <div className="flex flex-col gap-6">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[oklch(0.32_0.05_220)] via-[oklch(0.38_0.06_230)] to-[oklch(0.45_0.1_30)] p-6 text-white shadow-lg lg:p-8">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[oklch(0.32_0.05_220)] via-[oklch(0.38_0.06_230)] to-[oklch(0.48_0.07_160)] p-6 text-white shadow-lg lg:p-8">
         <div className="absolute -top-16 -right-16 size-56 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-20 right-24 size-40 rounded-full bg-accent/30 blur-3xl" />
 

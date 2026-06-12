@@ -48,7 +48,7 @@ const invoiceFields = [
   { name: 'event', label: 'Event', span: 'full' },
   { name: 'amount', label: 'Total amount', type: 'number', min: 0 },
   { name: 'paid', label: 'Amount paid', type: 'number', min: 0 },
-  { name: 'dueDate', label: 'Due date', type: 'date' },
+  { name: 'dueDate', label: 'Due date', type: 'date', required: true },
   { name: 'status', label: 'Status', type: 'select', options: invoiceStatuses },
 ]
 
@@ -77,7 +77,7 @@ export default function Payments() {
   const dueInvoices = useMemo(
     () =>
       invoices
-        .filter((inv) => inv.status !== 'Paid' && inv.dueDate <= today)
+        .filter((inv) => inv.status !== 'Paid' && inv.dueDate && inv.dueDate <= today)
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     [invoices, today]
   )
@@ -272,7 +272,9 @@ export default function Payments() {
                   <TableCell className="font-medium">{invoice.id}</TableCell>
                   <TableCell>{invoice.client}</TableCell>
                   <TableCell>{invoice.event}</TableCell>
-                  <TableCell>{formatDate(invoice.dueDate)}</TableCell>
+                  <TableCell>
+                    {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[invoice.status] ?? 'outline'}>{invoice.status}</Badge>
                   </TableCell>

@@ -219,7 +219,7 @@ export default function Tasks() {
                           )}
                         >
                           {due && <BellRing className="size-3" />}
-                          {formatDate(task.dueDate)}
+                          {task.dueDate ? formatDate(task.dueDate) : 'No due date'}
                         </span>
                       </div>
                     </div>

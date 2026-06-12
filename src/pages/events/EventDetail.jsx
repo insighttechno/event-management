@@ -320,7 +320,7 @@ function EventDetailView({ event }) {
                     <div>
                       <p className="text-sm font-medium">{doc.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        Sent {formatDate(doc.sentDate)}
+                        {doc.sentDate ? `Sent ${formatDate(doc.sentDate)}` : 'Not sent yet'}
                         {doc.signedDate && <> · Signed {formatDate(doc.signedDate)}</>}
                       </p>
                     </div>

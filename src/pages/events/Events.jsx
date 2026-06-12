@@ -22,7 +22,7 @@ const eventFields = [
   { name: 'name', label: 'Event name', span: 'full', required: true },
   { name: 'client', label: 'Client', span: 'full' },
   { name: 'type', label: 'Event type' },
-  { name: 'date', label: 'Date', type: 'date' },
+  { name: 'date', label: 'Date', type: 'date', required: true },
   { name: 'venue', label: 'Venue', span: 'full' },
   { name: 'status', label: 'Status', type: 'select', options: eventStatuses },
   { name: 'guestCount', label: 'Guest count', type: 'number', min: 0 },
@@ -111,12 +111,18 @@ export default function Events() {
               className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-muted/40"
             >
               <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 leading-none text-primary">
-                <span className="text-sm font-bold">
-                  {new Date(event.date).getDate()}
-                </span>
-                <span className="text-[10px] font-medium uppercase">
-                  {new Date(event.date).toLocaleString('en-US', { month: 'short' })}
-                </span>
+                {event.date ? (
+                  <>
+                    <span className="text-sm font-bold">
+                      {new Date(event.date).getDate()}
+                    </span>
+                    <span className="text-[10px] font-medium uppercase">
+                      {new Date(event.date).toLocaleString('en-US', { month: 'short' })}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-[10px] font-medium uppercase">TBD</span>
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <Link
@@ -126,7 +132,8 @@ export default function Events() {
                   {event.name}
                 </Link>
                 <p className="truncate text-xs text-muted-foreground">
-                  {formatDate(event.date)} · {event.venue} · {event.guestCount} guests
+                  {event.date ? formatDate(event.date) : 'Date TBD'} · {event.venue} ·{' '}
+                  {event.guestCount} guests
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">

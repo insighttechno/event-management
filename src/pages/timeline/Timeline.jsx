@@ -232,7 +232,7 @@ export default function Timeline() {
                       {milestone.title}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {formatDate(milestone.date)}
+                      {milestone.date ? formatDate(milestone.date) : '—'}
                     </span>
                     <RowActions
                       onEdit={() => openEditMilestone(event.id, index, milestone)}
