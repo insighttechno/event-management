@@ -15,10 +15,11 @@ export function ConfirmDialog({
   description,
   confirmLabel = 'Delete',
   onConfirm,
+  className,
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className={`sm:max-w-sm ${className ?? ''}`}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

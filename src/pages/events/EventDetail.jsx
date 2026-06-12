@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -58,6 +59,8 @@ function EventDetailView({ event }) {
   const [newMilestone, setNewMilestone] = useState({ title: '', date: '' })
   const [vendorToAssign, setVendorToAssign] = useState('')
   const [newNote, setNewNote] = useState('')
+  // { title, description, confirmLabel, action } — generic confirmation for destructive actions
+  const [confirmTarget, setConfirmTarget] = useState(null)
 
   // Local milestone updates write through to the service so they survive navigation.
   const setMilestones = (updater) => {
@@ -229,7 +232,14 @@ function EventDetailView({ event }) {
                   <button
                     type="button"
                     className="text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                    onClick={() => removeMilestone(index)}
+                    onClick={() =>
+                      setConfirmTarget({
+                        title: 'Delete this milestone?',
+                        description: `"${milestone.title}" will be removed from this event. This cannot be undone.`,
+                        confirmLabel: 'Delete',
+                        action: () => removeMilestone(index),
+                      })
+                    }
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -279,7 +289,18 @@ function EventDetailView({ event }) {
                       {vendor.category} · {vendor.contact} · {vendor.phone}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => removeVendor(vendor.id)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setConfirmTarget({
+                        title: 'Remove this vendor?',
+                        description: `${vendor.name} will be unassigned from "${event.name}". You can assign them again later.`,
+                        confirmLabel: 'Remove',
+                        action: () => removeVendor(vendor.id),
+                      })
+                    }
+                  >
                     Remove
                   </Button>
                 </div>
@@ -377,6 +398,15 @@ function EventDetailView({ event }) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={!!confirmTarget}
+        onOpenChange={(open) => !open && setConfirmTarget(null)}
+        title={confirmTarget?.title ?? ''}
+        description={confirmTarget?.description ?? ''}
+        confirmLabel={confirmTarget?.confirmLabel ?? 'Delete'}
+        onConfirm={() => confirmTarget?.action()}
+      />
     </div>
   )
 }

@@ -26,6 +26,7 @@ import {
 } from 'recharts'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -81,6 +82,7 @@ export default function SuperAdmin() {
   const { switchTenant } = useTenant()
   const [tenants, setTenants] = useState(() => tenantsService.list())
   const [search, setSearch] = useState('')
+  const [suspendTarget, setSuspendTarget] = useState(null)
 
   if (!superAdminAuth.isLoggedIn()) {
     return <Navigate to="/superadmin/login" replace />
@@ -420,7 +422,11 @@ export default function SuperAdmin() {
                           size="sm"
                           variant={tenant.status === 'Suspended' ? 'default' : 'ghost'}
                           className={tenant.status !== 'Suspended' ? 'text-muted-foreground hover:text-rose-400' : ''}
-                          onClick={() => toggleSuspend(tenant)}
+                          onClick={() =>
+                            tenant.status === 'Suspended'
+                              ? toggleSuspend(tenant)
+                              : setSuspendTarget(tenant)
+                          }
                         >
                           {tenant.status === 'Suspended' ? 'Activate' : 'Suspend'}
                         </Button>
@@ -445,6 +451,20 @@ export default function SuperAdmin() {
           backend exists.
         </p>
       </main>
+
+      <ConfirmDialog
+        className="dark"
+        open={!!suspendTarget}
+        onOpenChange={(open) => !open && setSuspendTarget(null)}
+        title="Suspend this workspace?"
+        description={
+          suspendTarget
+            ? `"${suspendTarget.name}" and all its users will immediately lose access to the portal. You can reactivate it anytime.`
+            : ''
+        }
+        confirmLabel="Suspend"
+        onConfirm={() => toggleSuspend(suspendTarget)}
+      />
     </div>
   )
 }
