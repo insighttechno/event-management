@@ -1,9 +1,12 @@
+import { useSyncExternalStore } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
+import { Lock, LogOut } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
+import { getTeamMembers, subscribeTeam } from '@/lib/team-store'
 
 export function SidebarBrand({ subtitle = '& Senses At Play' }) {
   return (
@@ -22,29 +25,69 @@ export function SidebarBrand({ subtitle = '& Senses At Play' }) {
 }
 
 export function SidebarNav({ items, onNavigate }) {
-  const { role } = useAuth()
-  const visible = items.filter((item) => !item.roles || item.roles.includes(role))
+  const { role, user } = useAuth()
+  const members = useSyncExternalStore(subscribeTeam, getTeamMembers)
+
+  // Team Members see every admin tab, but only their assigned modules are
+  // enabled — the rest show locked so they know what exists and who to ask.
+  const me =
+    role === 'Team Member'
+      ? members.find((member) => member.name === user?.name)
+      : null
+
+  const isLocked = (item) => {
+    if (!item.roles) return false // client nav — no module gating
+    if (role !== 'Team Member') return !item.roles.includes(role)
+    if (!me) return !item.roles.includes(role) // unknown member: old role-based behavior
+    return !me.modules.includes(item.title)
+  }
+
+  // Admins (and clients) only see what their role allows; Team Members see all tabs.
+  const visible =
+    role === 'Team Member' && me
+      ? items
+      : items.filter((item) => !item.roles || item.roles.includes(role))
 
   return (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-      {visible.map((item) => (
-        <NavLink
-          key={item.url}
-          to={item.url}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              isActive
-                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            )
-          }
-        >
-          <item.icon className="size-4 shrink-0" />
-          {item.title}
-        </NavLink>
-      ))}
+      {visible.map((item) => {
+        if (isLocked(item)) {
+          return (
+            <button
+              key={item.url}
+              type="button"
+              onClick={() =>
+                toast.info(`You don't have access to ${item.title}.`, {
+                  description: 'Ask your administrator to assign it from the Team page.',
+                })
+              }
+              className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-sidebar-foreground/35 transition-colors hover:bg-sidebar-accent/40"
+            >
+              <item.icon className="size-4 shrink-0" />
+              {item.title}
+              <Lock className="ml-auto size-3.5 shrink-0" />
+            </button>
+          )
+        }
+        return (
+          <NavLink
+            key={item.url}
+            to={item.url}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              )
+            }
+          >
+            <item.icon className="size-4 shrink-0" />
+            {item.title}
+          </NavLink>
+        )
+      })}
     </nav>
   )
 }

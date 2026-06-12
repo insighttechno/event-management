@@ -33,7 +33,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
-import { teamMembers as initialTeamMembers, teamModules } from '@/data/users'
+import { teamModules } from '@/data/users'
+import { getTeamMembers, setTeamMembers as syncTeamStore } from '@/lib/team-store'
 import { tasks } from '@/data/tasks'
 import { nextSequentialId } from '@/lib/utils'
 
@@ -47,10 +48,19 @@ function getInitials(name) {
 }
 
 export default function Team() {
-  const [teamMembers, setTeamMembers] = useState(initialTeamMembers)
+  const [teamMembers, setTeamMembersState] = useState(() => getTeamMembers())
   const [formOpen, setFormOpen] = useState(false)
   const [editingMember, setEditingMember] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+
+  // Keep the shared store in sync so the sidebar reflects access changes live.
+  const setTeamMembers = (updater) => {
+    setTeamMembersState((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      syncTeamStore(next)
+      return next
+    })
+  }
 
   const openAddDialog = () => {
     setEditingMember(null)
