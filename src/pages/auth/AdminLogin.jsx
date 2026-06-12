@@ -42,9 +42,9 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 text-center sm:text-left">
-        <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+    <div className="space-y-5">
+      <div className="space-y-1.5 text-center sm:text-left">
+        <h2 className="font-display text-2xl font-semibold tracking-tight">
           Welcome back
         </h2>
         <p className="text-sm text-muted-foreground">
