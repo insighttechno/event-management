@@ -58,7 +58,7 @@ export const authShowcase = {
     },
   },
   Client: {
-    image: '/images/auth/client.jpg',
+    image: '/images/auth/client-hero.jpg',
     badge: 'Client portal',
     title: 'Your dream day, beautifully organized.',
     description:
