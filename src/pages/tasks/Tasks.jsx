@@ -15,9 +15,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { taskStatuses } from '@/data/tasks'
-import { tasksService } from '@/services/tasks'
-import { formatDate } from '@/lib/utils'
+import { tasks as initialTasks, taskStatuses } from '@/data/tasks'
+import { formatDate, nextSequentialId } from '@/lib/utils'
 
 const priorityVariant = {
   High: 'destructive',
@@ -54,7 +53,7 @@ function dueStatus(task) {
 }
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState(() => tasksService.list())
+  const [tasks, setTasks] = useState(initialTasks)
   const [formOpen, setFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -68,8 +67,7 @@ export default function Tasks() {
   const moveTaskToStatus = (taskId, status) => {
     const task = tasks.find((item) => item.id === taskId)
     if (!task || task.status === status) return
-    tasksService.update(taskId, { status })
-    setTasks(tasksService.list())
+    setTasks((prev) => prev.map((item) => (item.id === taskId ? { ...item, status } : item)))
     toast.success(`"${task.title}" moved to ${status}.`)
   }
 
@@ -89,18 +87,22 @@ export default function Tasks() {
 
   const handleSubmit = (values) => {
     if (editingTask) {
-      tasksService.update(editingTask.id, values)
+      setTasks((prev) =>
+        prev.map((task) => (task.id === editingTask.id ? { ...task, ...values } : task))
+      )
       toast.success(`Task "${values.title}" updated.`)
     } else {
-      tasksService.create(values)
+      const newTask = {
+        ...values,
+        id: nextSequentialId(tasks, 'T'),
+      }
+      setTasks((prev) => [newTask, ...prev])
       toast.success(`Task "${values.title}" added.`)
     }
-    setTasks(tasksService.list())
   }
 
   const handleDelete = () => {
-    tasksService.remove(deleteTarget.id)
-    setTasks(tasksService.list())
+    setTasks((prev) => prev.filter((task) => task.id !== deleteTarget.id))
     toast.success(`Task "${deleteTarget.title}" deleted.`)
   }
 

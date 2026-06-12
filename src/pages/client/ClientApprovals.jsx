@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { approvalsService } from '@/services/finance'
+import { approvals as initialApprovals } from '@/data/finance'
 import { formatDate } from '@/lib/utils'
 
 const statusVariant = {
@@ -49,7 +49,7 @@ const versionHistory = {
 }
 
 export default function ClientApprovals() {
-  const [approvals, setApprovals] = useState(() => approvalsService.list())
+  const [approvals, setApprovals] = useState(initialApprovals)
   const [comments, setComments] = useState({})
   const [actionTarget, setActionTarget] = useState(null) // { item, action: 'approve' | 'changes' }
   const [historyTarget, setHistoryTarget] = useState(null)
@@ -58,11 +58,13 @@ export default function ClientApprovals() {
 
   const resolve = (item, action, comment) => {
     const status = action === 'approve' ? 'Approved' : 'Changes Requested'
-    approvalsService.update(item.id, {
-      status,
-      date: new Date().toISOString().slice(0, 10),
-    })
-    setApprovals(approvalsService.list())
+    setApprovals((prev) =>
+      prev.map((approval) =>
+        approval.id === item.id
+          ? { ...approval, status, date: new Date().toISOString().slice(0, 10) }
+          : approval
+      )
+    )
     if (comment.trim()) {
       setComments((prev) => ({ ...prev, [item.id]: comment.trim() }))
     }

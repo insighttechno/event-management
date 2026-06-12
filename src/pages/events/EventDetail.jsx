@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -11,7 +11,6 @@ import {
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -32,14 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { eventsService } from '@/services/events'
-import { vendorsService } from '@/services/vendors'
-import { contractsService } from '@/services/finance'
+import { events, eventVendorAssignments, eventNotes } from '@/data/events'
+import { vendors } from '@/data/vendors'
+import { contracts } from '@/data/finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 export default function EventDetail() {
   const { id } = useParams()
-  const event = eventsService.get(id)
+  const event = events.find((item) => item.id === id)
 
   if (!event) {
     return <Navigate to="/admin/events" replace />
@@ -49,32 +48,22 @@ export default function EventDetail() {
 }
 
 function EventDetailView({ event }) {
-  const vendors = vendorsService.list()
-  const contracts = contractsService.list()
-  const [milestones, setMilestonesState] = useState(event.milestones)
-  const [assignedVendorIds, setAssignedVendorIds] = useState(() =>
-    eventsService.vendorIdsFor(event.id)
+  const [milestones, setMilestones] = useState(event.milestones)
+  const [assignedVendorIds, setAssignedVendorIds] = useState(
+    eventVendorAssignments[event.id] ?? []
   )
-  const [notes, setNotes] = useState(() => eventsService.notesFor(event.id))
+  const [notes, setNotes] = useState(eventNotes[event.id] ?? [])
   const [newMilestone, setNewMilestone] = useState({ title: '', date: '' })
   const [vendorToAssign, setVendorToAssign] = useState('')
   const [newNote, setNewNote] = useState('')
-  // { title, description, confirmLabel, action } — generic confirmation for destructive actions
-  const [confirmTarget, setConfirmTarget] = useState(null)
-
-  // Local milestone updates write through to the service so they survive navigation.
-  const setMilestones = (updater) => {
-    setMilestonesState((prev) => {
-      const next = typeof updater === 'function' ? updater(prev) : updater
-      eventsService.update(event.id, { milestones: next })
-      return next
-    })
-  }
 
   const doneCount = milestones.filter((m) => m.done).length
   const progress = milestones.length ? Math.round((doneCount / milestones.length) * 100) : 0
 
-  const eventDocuments = contracts.filter((contract) => contract.event === event.name)
+  const eventDocuments = useMemo(
+    () => contracts.filter((contract) => contract.event === event.name),
+    [event.name]
+  )
 
   const assignedVendors = vendors.filter((vendor) => assignedVendorIds.includes(vendor.id))
   const availableVendors = vendors.filter((vendor) => !assignedVendorIds.includes(vendor.id))
@@ -105,28 +94,29 @@ function EventDetailView({ event }) {
   const assignVendor = () => {
     if (!vendorToAssign) return
     const vendor = vendors.find((v) => v.id === vendorToAssign)
-    eventsService.assignVendor(event.id, vendorToAssign)
-    setAssignedVendorIds(eventsService.vendorIdsFor(event.id))
+    setAssignedVendorIds((prev) => [...prev, vendorToAssign])
     setVendorToAssign('')
     toast.success(`${vendor.name} assigned to this event.`)
   }
 
   const removeVendor = (vendorId) => {
     const vendor = vendors.find((v) => v.id === vendorId)
-    eventsService.unassignVendor(event.id, vendorId)
-    setAssignedVendorIds(eventsService.vendorIdsFor(event.id))
+    setAssignedVendorIds((prev) => prev.filter((id) => id !== vendorId))
     toast.success(`${vendor.name} removed from this event.`)
   }
 
   const addNote = (e) => {
     e.preventDefault()
     if (!newNote.trim()) return
-    eventsService.addNote(event.id, {
-      text: newNote.trim(),
-      by: 'You',
-      date: new Date().toISOString().slice(0, 10),
-    })
-    setNotes(eventsService.notesFor(event.id))
+    setNotes((prev) => [
+      {
+        id: `N-${prev.length + 1}`,
+        text: newNote.trim(),
+        by: 'You',
+        date: new Date().toISOString().slice(0, 10),
+      },
+      ...prev,
+    ])
     setNewNote('')
     toast.success('Note added.')
   }
@@ -232,14 +222,7 @@ function EventDetailView({ event }) {
                   <button
                     type="button"
                     className="text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                    onClick={() =>
-                      setConfirmTarget({
-                        title: 'Delete this milestone?',
-                        description: `"${milestone.title}" will be removed from this event. This cannot be undone.`,
-                        confirmLabel: 'Delete',
-                        action: () => removeMilestone(index),
-                      })
-                    }
+                    onClick={() => removeMilestone(index)}
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -289,18 +272,7 @@ function EventDetailView({ event }) {
                       {vendor.category} · {vendor.contact} · {vendor.phone}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      setConfirmTarget({
-                        title: 'Remove this vendor?',
-                        description: `${vendor.name} will be unassigned from "${event.name}". You can assign them again later.`,
-                        confirmLabel: 'Remove',
-                        action: () => removeVendor(vendor.id),
-                      })
-                    }
-                  >
+                  <Button size="sm" variant="outline" onClick={() => removeVendor(vendor.id)}>
                     Remove
                   </Button>
                 </div>
@@ -398,15 +370,6 @@ function EventDetailView({ event }) {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <ConfirmDialog
-        open={!!confirmTarget}
-        onOpenChange={(open) => !open && setConfirmTarget(null)}
-        title={confirmTarget?.title ?? ''}
-        description={confirmTarget?.description ?? ''}
-        confirmLabel={confirmTarget?.confirmLabel ?? 'Delete'}
-        onConfirm={() => confirmTarget?.action()}
-      />
     </div>
   )
 }

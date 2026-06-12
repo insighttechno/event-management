@@ -14,13 +14,11 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = 'Delete',
-  confirmVariant = 'destructive',
   onConfirm,
-  className,
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`sm:max-w-sm ${className ?? ''}`}>
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -31,7 +29,7 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant={confirmVariant}
+            variant="destructive"
             onClick={() => {
               onConfirm()
               onOpenChange(false)

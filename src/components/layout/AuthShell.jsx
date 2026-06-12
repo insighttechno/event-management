@@ -1,10 +1,8 @@
 import { Outlet } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { authShowcase } from '@/lib/auth-showcase'
-import { useTenant } from '@/hooks/use-tenant'
 
 export function AuthShell({ roles, previewRole, outletContext }) {
-  const { tenant } = useTenant()
   const content = authShowcase[previewRole]
 
   return (
@@ -29,11 +27,11 @@ export function AuthShell({ roles, previewRole, outletContext }) {
 
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-xl bg-white/15 font-display text-xl font-semibold backdrop-blur-sm">
-            {tenant.initials}
+            FA
           </div>
           <div className="leading-tight">
-            <p className="font-display text-lg font-semibold">{tenant.name}</p>
-            <p className="text-xs text-primary-foreground/70">{tenant.tagline}</p>
+            <p className="font-display text-lg font-semibold">Family Affair Key West</p>
+            <p className="text-xs text-primary-foreground/70">&amp; Senses At Play</p>
           </div>
         </div>
 
@@ -96,11 +94,11 @@ export function AuthShell({ roles, previewRole, outletContext }) {
       <div className="flex w-full flex-col justify-center overflow-y-auto px-4 py-10 sm:px-8 lg:w-1/2 lg:px-16 lg:py-12 xl:px-20">
         <div className="mb-8 flex items-center gap-3 lg:hidden">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary font-display text-lg font-semibold text-primary-foreground">
-            {tenant.initials}
+            FA
           </div>
           <div className="leading-tight">
-            <p className="font-display text-base font-semibold">{tenant.name}</p>
-            <p className="text-xs text-muted-foreground">{tenant.tagline}</p>
+            <p className="font-display text-base font-semibold">Family Affair Key West</p>
+            <p className="text-xs text-muted-foreground">&amp; Senses At Play</p>
           </div>
         </div>
 

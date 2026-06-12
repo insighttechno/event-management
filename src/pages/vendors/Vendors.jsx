@@ -29,10 +29,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { vendorCategories } from '@/data/vendors'
-import { vendorsService } from '@/services/vendors'
-import { eventsService } from '@/services/events'
-import { formatDate } from '@/lib/utils'
+import {
+  vendors as initialVendors,
+  vendorCategories,
+  vendorCommunications,
+} from '@/data/vendors'
+import { events, eventVendorAssignments } from '@/data/events'
+import { formatDate, nextSequentialId } from '@/lib/utils'
 
 const vendorFields = [
   { name: 'name', label: 'Vendor name', span: 'full', required: true },
@@ -57,13 +60,13 @@ const emptyVendor = {
 }
 
 function assignedEventsFor(vendorId) {
-  return eventsService
-    .list()
-    .filter((event) => eventsService.vendorIdsFor(event.id).includes(vendorId))
+  return events.filter((event) =>
+    (eventVendorAssignments[event.id] ?? []).includes(vendorId)
+  )
 }
 
 export default function Vendors() {
-  const [vendors, setVendors] = useState(() => vendorsService.list())
+  const [vendors, setVendors] = useState(initialVendors)
   const [formOpen, setFormOpen] = useState(false)
   const [editingVendor, setEditingVendor] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -103,18 +106,22 @@ export default function Vendors() {
     }
 
     if (editingVendor) {
-      vendorsService.update(editingVendor.id, payload)
+      setVendors((prev) =>
+        prev.map((vendor) => (vendor.id === editingVendor.id ? { ...vendor, ...payload } : vendor))
+      )
       toast.success(`Vendor "${payload.name}" updated.`)
     } else {
-      vendorsService.create(payload)
+      const newVendor = {
+        ...payload,
+        id: nextSequentialId(vendors, 'V'),
+      }
+      setVendors((prev) => [newVendor, ...prev])
       toast.success(`Vendor "${payload.name}" added.`)
     }
-    setVendors(vendorsService.list())
   }
 
   const handleDelete = () => {
-    vendorsService.remove(deleteTarget.id)
-    setVendors(vendorsService.list())
+    setVendors((prev) => prev.filter((vendor) => vendor.id !== deleteTarget.id))
     toast.success(`Vendor "${deleteTarget.name}" deleted.`)
   }
 
@@ -259,7 +266,7 @@ export default function Vendors() {
 
 function VendorProfileSheet({ vendor, onOpenChange, onEdit }) {
   const assignedEvents = vendor ? assignedEventsFor(vendor.id) : []
-  const communications = vendor ? vendorsService.communicationsFor(vendor.id) : []
+  const communications = vendor ? (vendorCommunications[vendor.id] ?? []) : []
 
   return (
     <Sheet open={!!vendor} onOpenChange={onOpenChange}>

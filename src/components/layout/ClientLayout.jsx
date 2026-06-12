@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { CalendarHeart, MapPin } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
-import { useTenant } from '@/hooks/use-tenant'
 import { clientNavItems } from '@/lib/navigation'
-import { eventsService } from '@/services/events'
+import { events } from '@/data/events'
 import { formatDate } from '@/lib/utils'
 import { SidebarBrand, SidebarNav, SidebarUser } from './Sidebar'
 import { Topbar } from './Topbar'
@@ -42,21 +41,19 @@ function SidebarEventCard({ event }) {
 
 export default function ClientLayout() {
   const { role } = useAuth()
-  const { tenant } = useTenant()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   if (role !== 'Client') {
     return <Navigate to="/" replace />
   }
 
-  // The demo client account is linked to the workspace's first event.
-  const myEvent = eventsService.list()[0]
+  const myEvent = events[0]
 
   return (
     <div className="flex min-h-screen w-full bg-background">
       <aside className="hidden w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
         <SidebarBrand subtitle="Client Portal" />
-        {myEvent && <SidebarEventCard event={myEvent} />}
+        <SidebarEventCard event={myEvent} />
         <SidebarNav items={clientNavItems} />
         <SidebarUser loginPath="/" />
       </aside>
@@ -68,7 +65,7 @@ export default function ClientLayout() {
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarBrand subtitle="Client Portal" />
-          {myEvent && <SidebarEventCard event={myEvent} />}
+          <SidebarEventCard event={myEvent} />
           <SidebarNav items={clientNavItems} onNavigate={() => setMobileOpen(false)} />
           <SidebarUser loginPath="/" />
         </SheetContent>
@@ -76,20 +73,9 @@ export default function ClientLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={() => setMobileOpen(true)} loginPath="/" />
-        {/* Keyed by tenant so pages re-read services on workspace switch */}
-        <main key={tenant.id} className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="mx-auto w-full max-w-6xl">
-            {myEvent ? (
-              <Outlet />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-                <p className="font-display text-xl font-semibold">No event yet</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  This workspace has no events linked to your account yet. Your planner
-                  will set this up for you.
-                </p>
-              </div>
-            )}
+            <Outlet />
           </div>
         </main>
       </div>

@@ -1,9 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
-import { useTenant } from '@/hooks/use-tenant'
 
 export default function AdminAuthLayout() {
-  const { tenant } = useTenant()
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[oklch(0.22_0.04_225)] p-4">
       {/* Background decoration */}
@@ -24,11 +22,11 @@ export default function AdminAuthLayout() {
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <div className="flex size-14 items-center justify-center rounded-2xl bg-primary font-display text-2xl font-semibold text-primary-foreground shadow-lg shadow-primary/30">
-            {tenant.initials}
+            FA
           </div>
           <div className="leading-tight">
             <p className="font-display text-xl font-semibold text-white">
-              {tenant.name}
+              Family Affair Key West
             </p>
             <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium tracking-wide text-white/80 uppercase backdrop-blur-sm">
               <ShieldCheck className="size-3.5" />
@@ -42,8 +40,7 @@ export default function AdminAuthLayout() {
         </div>
 
         <p className="mt-6 text-center text-xs text-white/50">
-          Authorized staff only · {tenant.name}
-          {tenant.tagline ? ` ${tenant.tagline}` : ''}
+          Authorized staff only · Family Affair Key West &amp; Senses At Play
         </p>
       </div>
     </div>

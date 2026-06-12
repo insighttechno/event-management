@@ -32,8 +32,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { invoicesService, revenueService } from '@/services/finance'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { invoices as initialInvoices, monthlyRevenue } from '@/data/finance'
+import { formatCurrency, formatDate, nextSequentialId } from '@/lib/utils'
 
 const statusVariant = {
   Paid: 'secondary',
@@ -62,8 +62,7 @@ const emptyInvoice = {
 }
 
 export default function Payments() {
-  const monthlyRevenue = revenueService.monthly()
-  const [invoices, setInvoices] = useState(() => invoicesService.list())
+  const [invoices, setInvoices] = useState(initialInvoices)
   const [formOpen, setFormOpen] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -86,12 +85,17 @@ export default function Payments() {
   const recordPayment = (values) => {
     const amount = Number(values.amount) || 0
     if (amount <= 0) return
-    const paid = Math.min(paymentTarget.paid + amount, paymentTarget.amount)
-    invoicesService.update(paymentTarget.id, {
-      paid,
-      status: paid >= paymentTarget.amount ? 'Paid' : 'Partially Paid',
-    })
-    setInvoices(invoicesService.list())
+    setInvoices((prev) =>
+      prev.map((inv) => {
+        if (inv.id !== paymentTarget.id) return inv
+        const paid = Math.min(inv.paid + amount, inv.amount)
+        return {
+          ...inv,
+          paid,
+          status: paid >= inv.amount ? 'Paid' : 'Partially Paid',
+        }
+      })
+    )
     toast.success(`${formatCurrency(amount)} payment recorded for ${paymentTarget.id}.`)
   }
 
@@ -117,18 +121,24 @@ export default function Payments() {
     }
 
     if (editingInvoice) {
-      invoicesService.update(editingInvoice.id, payload)
+      setInvoices((prev) =>
+        prev.map((invoice) =>
+          invoice.id === editingInvoice.id ? { ...invoice, ...payload } : invoice
+        )
+      )
       toast.success(`Invoice for ${payload.client} updated.`)
     } else {
-      invoicesService.create(payload)
+      const newInvoice = {
+        ...payload,
+        id: nextSequentialId(invoices, 'INV'),
+      }
+      setInvoices((prev) => [newInvoice, ...prev])
       toast.success(`Invoice for ${payload.client} added.`)
     }
-    setInvoices(invoicesService.list())
   }
 
   const handleDelete = () => {
-    invoicesService.remove(deleteTarget.id)
-    setInvoices(invoicesService.list())
+    setInvoices((prev) => prev.filter((invoice) => invoice.id !== deleteTarget.id))
     toast.success(`Invoice ${deleteTarget.id} deleted.`)
   }
 

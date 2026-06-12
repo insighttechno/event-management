@@ -1,4 +1,4 @@
-const familyAffairVendors = [
+export const vendors = [
   {
     id: 'V-101',
     name: 'Coral Blooms Florals',
@@ -65,48 +65,6 @@ const familyAffairVendors = [
     eventsCount: 11,
     notes: 'Specializes in boho and tropical-modern styling.',
   },
-]
-
-// Seed data for the second demo workspace (Coastal Events Miami).
-const coastalVendors = [
-  {
-    id: 'V-201',
-    name: 'Biscayne Beats Live',
-    category: 'Entertainment',
-    contact: 'Rico Santana',
-    phone: '(786) 555-0410',
-    email: 'rico@biscaynebeats.com',
-    rating: 4.8,
-    eventsCount: 19,
-    notes: '10-piece salsa band, very popular for beach weddings.',
-  },
-  {
-    id: 'V-202',
-    name: 'Ocean Drive Catering Co.',
-    category: 'Catering',
-    contact: 'Amelia Torres',
-    phone: '(786) 555-0432',
-    email: 'amelia@oceandrivecatering.com',
-    rating: 4.7,
-    eventsCount: 31,
-    notes: 'Handles 50–300 guests, strong Latin and fusion menus.',
-  },
-  {
-    id: 'V-203',
-    name: 'Vizcaya Florals & Décor',
-    category: 'Florist',
-    contact: 'Sofia Marin',
-    phone: '(786) 555-0455',
-    email: 'sofia@vizcayaflorals.com',
-    rating: 4.9,
-    eventsCount: 12,
-    notes: 'Specializes in large installations and mandap work.',
-  },
-]
-
-export const vendors = [
-  ...familyAffairVendors.map((vendor) => ({ ...vendor, tenantId: 'T-1' })),
-  ...coastalVendors.map((vendor) => ({ ...vendor, tenantId: 'T-2' })),
 ]
 
 // Dummy communication log per vendor (no backend yet).

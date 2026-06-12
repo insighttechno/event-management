@@ -22,8 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { eventsService } from '@/services/events'
-import { invoicesService } from '@/services/finance'
+import { events } from '@/data/events'
+import { invoices } from '@/data/finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 const statusVariant = {
@@ -43,28 +43,21 @@ const initialHistory = [
 ]
 
 export default function ClientInvoices() {
-  const event = eventsService.list()[0]
-  const [myInvoices, setMyInvoices] = useState(() =>
-    invoicesService.list().filter((i) => i.event === event.name)
+  const event = events[0]
+  const [myInvoices, setMyInvoices] = useState(
+    invoices.filter((i) => i.event === event.name)
   )
-  // Only show payment history belonging to this client's own invoices.
-  const [history, setHistory] = useState(() =>
-    initialHistory.filter((payment) =>
-      invoicesService.list().some(
-        (invoice) => invoice.event === event.name && invoice.id === payment.invoiceId
-      )
-    )
-  )
+  const [history, setHistory] = useState(initialHistory)
   const [payTarget, setPayTarget] = useState(null)
 
   const recordPayment = (invoice, amount) => {
-    const paid = Math.min(invoice.paid + amount, invoice.amount)
-    // Write through the service so the admin Payments page sees it too.
-    invoicesService.update(invoice.id, {
-      paid,
-      status: paid >= invoice.amount ? 'Paid' : 'Partially Paid',
-    })
-    setMyInvoices(invoicesService.list().filter((i) => i.event === event.name))
+    setMyInvoices((prev) =>
+      prev.map((item) => {
+        if (item.id !== invoice.id) return item
+        const paid = Math.min(item.paid + amount, item.amount)
+        return { ...item, paid, status: paid >= item.amount ? 'Paid' : 'Partially Paid' }
+      })
+    )
     setHistory((prev) => [
       {
         id: `P-${prev.length + 1}`,

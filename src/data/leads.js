@@ -34,7 +34,7 @@ export const leadCommunications = {
   ],
 }
 
-const familyAffairLeads = [
+export const leads = [
   {
     id: 'L-1042',
     name: 'Sarah & James Whitfield',
@@ -145,54 +145,4 @@ const familyAffairLeads = [
     createdAt: '2026-06-05',
     notes: 'Looking for spring 2027 dates, island ceremony.',
   },
-]
-
-// Seed data for the second demo workspace (Coastal Events Miami).
-const coastalLeads = [
-  {
-    id: 'L-2001',
-    name: 'Isabella & Diego Fuentes',
-    email: 'isabella.fuentes@example.com',
-    phone: '(786) 555-0301',
-    eventType: 'Wedding',
-    source: 'Instagram',
-    stage: 'Proposal Sent',
-    assignedTo: 'Carla Mendes',
-    value: 64000,
-    createdAt: '2026-05-12',
-    nextFollowUp: '2026-06-14',
-    notes: 'Oceanfront ballroom wedding, ~150 guests, wants live band.',
-  },
-  {
-    id: 'L-2002',
-    name: 'Priya & Arjun Shah',
-    email: 'priya.shah@example.com',
-    phone: '(786) 555-0322',
-    eventType: 'Sangeet & Wedding',
-    source: 'Referral',
-    stage: 'Consultation Scheduled',
-    assignedTo: 'Tom Alvarez',
-    value: 88000,
-    createdAt: '2026-05-28',
-    nextFollowUp: '2026-06-16',
-    notes: 'Two-day celebration, needs mandap décor and South Asian catering.',
-  },
-  {
-    id: 'L-2003',
-    name: 'Marriott Quarterly Offsite',
-    email: 'events@marriott-corp.example.com',
-    phone: '(786) 555-0340',
-    eventType: 'Corporate',
-    source: 'Website Form',
-    stage: 'New Inquiry',
-    assignedTo: 'Carla Mendes',
-    value: 22000,
-    createdAt: '2026-06-08',
-    notes: '120-person corporate dinner, AV requirements pending.',
-  },
-]
-
-export const leads = [
-  ...familyAffairLeads.map((lead) => ({ ...lead, tenantId: 'T-1' })),
-  ...coastalLeads.map((lead) => ({ ...lead, tenantId: 'T-2' })),
 ]

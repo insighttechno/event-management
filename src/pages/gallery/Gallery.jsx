@@ -14,7 +14,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { galleriesService } from '@/services/finance'
+import { galleries as initialGalleries } from '@/data/finance'
+import { nextSequentialId } from '@/lib/utils'
 
 const statusVariant = {
   Delivered: 'secondary',
@@ -43,7 +44,7 @@ const emptyGallery = {
 }
 
 export default function Gallery() {
-  const [galleries, setGalleries] = useState(() => galleriesService.list())
+  const [galleries, setGalleries] = useState(initialGalleries)
   const [formOpen, setFormOpen] = useState(false)
   const [editingGallery, setEditingGallery] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -52,10 +53,13 @@ export default function Gallery() {
   const handleUpload = (values) => {
     const count = Number(values.photoCount) || 0
     if (count <= 0) return
-    galleriesService.update(uploadTarget.id, {
-      photoCount: uploadTarget.photoCount + count,
-    })
-    setGalleries(galleriesService.list())
+    setGalleries((prev) =>
+      prev.map((gallery) =>
+        gallery.id === uploadTarget.id
+          ? { ...gallery, photoCount: gallery.photoCount + count }
+          : gallery
+      )
+    )
     toast.success(`${count} photos uploaded to "${uploadTarget.title}".`)
   }
 
@@ -87,18 +91,24 @@ export default function Gallery() {
     }
 
     if (editingGallery) {
-      galleriesService.update(editingGallery.id, payload)
+      setGalleries((prev) =>
+        prev.map((gallery) =>
+          gallery.id === editingGallery.id ? { ...gallery, ...payload } : gallery
+        )
+      )
       toast.success(`"${payload.title}" updated.`)
     } else {
-      galleriesService.create(payload)
+      const newGallery = {
+        ...payload,
+        id: nextSequentialId(galleries, 'G'),
+      }
+      setGalleries((prev) => [newGallery, ...prev])
       toast.success(`"${payload.title}" added.`)
     }
-    setGalleries(galleriesService.list())
   }
 
   const handleDelete = () => {
-    galleriesService.remove(deleteTarget.id)
-    setGalleries(galleriesService.list())
+    setGalleries((prev) => prev.filter((gallery) => gallery.id !== deleteTarget.id))
     toast.success(`"${deleteTarget.title}" deleted.`)
   }
 

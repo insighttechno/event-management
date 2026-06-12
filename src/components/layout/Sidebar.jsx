@@ -4,22 +4,18 @@ import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
-import { useTenant } from '@/hooks/use-tenant'
 
-export function SidebarBrand({ subtitle }) {
-  const { tenant } = useTenant()
+export function SidebarBrand({ subtitle = '& Senses At Play' }) {
   return (
     <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-5">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-display text-lg font-semibold text-sidebar-primary-foreground">
-        {tenant.initials}
+        FA
       </div>
-      <div className="min-w-0 leading-tight">
-        <p className="truncate font-display text-base font-semibold text-sidebar-foreground">
-          {tenant.name}
+      <div className="leading-tight">
+        <p className="font-display text-base font-semibold text-sidebar-foreground">
+          Family Affair
         </p>
-        <p className="truncate text-xs text-sidebar-foreground/60">
-          {subtitle ?? tenant.tagline}
-        </p>
+        <p className="text-xs text-sidebar-foreground/60">{subtitle}</p>
       </div>
     </div>
   )

@@ -13,8 +13,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { eventsService } from '@/services/events'
-import { galleriesService } from '@/services/finance'
+import { events } from '@/data/events'
+import { galleries } from '@/data/finance'
 
 const statusVariant = {
   Delivered: 'secondary',
@@ -47,8 +47,8 @@ function demoPhotos(gallery) {
 }
 
 export default function ClientGallery() {
-  const event = eventsService.list()[0]
-  const myGalleries = galleriesService.list().filter((g) => g.client === event.client)
+  const event = events[0]
+  const myGalleries = galleries.filter((g) => g.client === event.client)
   const [openGallery, setOpenGallery] = useState(null)
   const [favorites, setFavorites] = useState({})
   const [lightboxIndex, setLightboxIndex] = useState(null)

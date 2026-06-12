@@ -16,8 +16,9 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { teamService } from '@/services/team'
-import { tasksService } from '@/services/tasks'
+import { teamMembers as initialTeamMembers } from '@/data/users'
+import { tasks } from '@/data/tasks'
+import { nextSequentialId } from '@/lib/utils'
 
 const teamRoles = ['Administrator', 'Team Member']
 
@@ -41,8 +42,7 @@ function getInitials(name) {
 }
 
 export default function Team() {
-  const tasks = tasksService.list()
-  const [teamMembers, setTeamMembers] = useState(() => teamService.list())
+  const [teamMembers, setTeamMembers] = useState(initialTeamMembers)
   const [formOpen, setFormOpen] = useState(false)
   const [editingMember, setEditingMember] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -61,18 +61,22 @@ export default function Team() {
     const payload = { ...values, initials: getInitials(values.name) }
 
     if (editingMember) {
-      teamService.update(editingMember.id, payload)
+      setTeamMembers((prev) =>
+        prev.map((member) => (member.id === editingMember.id ? { ...member, ...payload } : member))
+      )
       toast.success(`"${payload.name}" updated.`)
     } else {
-      teamService.create(payload)
+      const newMember = {
+        ...payload,
+        id: nextSequentialId(teamMembers, 'U'),
+      }
+      setTeamMembers((prev) => [newMember, ...prev])
       toast.success(`"${payload.name}" added to the team.`)
     }
-    setTeamMembers(teamService.list())
   }
 
   const handleDelete = () => {
-    teamService.remove(deleteTarget.id)
-    setTeamMembers(teamService.list())
+    setTeamMembers((prev) => prev.filter((member) => member.id !== deleteTarget.id))
     toast.success(`"${deleteTarget.name}" removed from the team.`)
   }
 

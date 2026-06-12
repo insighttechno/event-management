@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, Search, Bell, Building2, Check, ChevronsUpDown, Plus, ShieldCheck } from 'lucide-react'
-import { toast } from 'sonner'
+import { Menu, Search, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,92 +14,22 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ProfileDialog } from '@/components/common/ProfileDialog'
 import { useAuth } from '@/hooks/use-auth'
-import { useTenant } from '@/hooks/use-tenant'
-import { notificationsService } from '@/services/notifications'
-
-function WorkspaceSwitcher() {
-  const navigate = useNavigate()
-  const { tenant, tenants, switchTenant } = useTenant()
-  const switchable = tenants.filter(
-    (item) => item.seeded && item.status !== 'Suspended'
-  )
-
-  const handleSwitch = (item) => {
-    if (item.id === tenant.id) return
-    switchTenant(item.id)
-    toast.success(`Switched to ${item.name}.`)
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="hidden gap-2 sm:flex">
-          <Building2 className="size-4 text-muted-foreground" />
-          <span className="max-w-36 truncate text-sm font-medium">{tenant.name}</span>
-          <ChevronsUpDown className="size-3.5 text-muted-foreground" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          Workspaces
-        </DropdownMenuLabel>
-        {switchable.map((item) => (
-          <DropdownMenuItem
-            key={item.id}
-            className="gap-2.5"
-            onClick={() => handleSwitch(item)}
-          >
-            <span
-              className="flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-white"
-              style={{ backgroundColor: item.brandColor }}
-            >
-              {item.initials}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{item.name}</span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {item.subdomain}.eventcrm.app
-              </span>
-            </span>
-            {item.id === tenant.id && <Check className="size-4 shrink-0 text-primary" />}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2.5" onClick={() => navigate('/get-started')}>
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-dashed border-border">
-            <Plus className="size-4 text-muted-foreground" />
-          </span>
-          <span className="text-sm">Add workspace</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
+import { notifications as initialNotifications } from '@/data/notifications'
 
 export function Topbar({ onMenuClick, loginPath = '/admin/login' }) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { saasDemo, tenant } = useTenant()
-  const [notifications, setNotifications] = useState(() => notificationsService.list())
+  const [notifications, setNotifications] = useState(initialNotifications)
   const [profileOpen, setProfileOpen] = useState(false)
-
-  // The topbar lives outside the tenant-keyed subtree, so re-read on switch.
-  const [lastTenantId, setLastTenantId] = useState(tenant.id)
-  if (lastTenantId !== tenant.id) {
-    setLastTenantId(tenant.id)
-    setNotifications(notificationsService.list())
-  }
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
   const markAsRead = (id) => {
-    notificationsService.update(id, { read: true })
-    setNotifications(notificationsService.list())
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
   }
 
   const markAllAsRead = () => {
-    notifications.forEach((n) => notificationsService.update(n.id, { read: true }))
-    setNotifications(notificationsService.list())
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }
 
   return (
@@ -116,8 +45,6 @@ export function Topbar({ onMenuClick, loginPath = '/admin/login' }) {
           <Input placeholder="Search..." className="w-full bg-muted/40 pl-8" />
         </div>
       </div>
-
-      {saasDemo && <WorkspaceSwitcher />}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -197,12 +124,6 @@ export function Topbar({ onMenuClick, loginPath = '/admin/login' }) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setProfileOpen(true)}>Edit profile</DropdownMenuItem>
-          {saasDemo && (
-            <DropdownMenuItem onClick={() => navigate('/superadmin')}>
-              <ShieldCheck className="size-4" />
-              Platform Console
-            </DropdownMenuItem>
-          )}
           <DropdownMenuItem
             variant="destructive"
             onClick={() => {
