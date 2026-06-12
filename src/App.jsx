@@ -27,6 +27,7 @@ import Settings from '@/pages/settings/Settings'
 
 import CompanySignup from '@/pages/saas/CompanySignup'
 import SuperAdmin from '@/pages/saas/SuperAdmin'
+import SuperAdminLogin from '@/pages/saas/SuperAdminLogin'
 
 import ClientDashboard from '@/pages/client/ClientDashboard'
 import ClientTimeline from '@/pages/client/ClientTimeline'
@@ -43,6 +44,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/get-started" element={<CompanySignup />} />
+          <Route path="/superadmin/login" element={<SuperAdminLogin />} />
           <Route path="/superadmin" element={<SuperAdmin />} />
           <Route element={<ClientAuthLayout />}>
             <Route path="/" element={<ClientLogin />} />

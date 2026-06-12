@@ -51,7 +51,10 @@ UI Pages  →  Services (src/services/)  →  Dummy Data (src/data/)
 | File | Route | Kya hai |
 |---|---|---|
 | `src/pages/saas/CompanySignup.jsx` | `/get-started` | Nayi company ka 3-step onboarding wizard |
-| `src/pages/saas/SuperAdmin.jsx` | `/superadmin` | Platform Console — saare tenants, MRR, suspend/activate |
+| `src/pages/saas/SuperAdminLogin.jsx` | `/superadmin/login` | Platform Console ka login (demo: koi bhi email/password) |
+| `src/pages/saas/SuperAdmin.jsx` | `/superadmin` | Platform Console — dark modern dashboard; login ke bina redirect hota hai |
+| `src/pages/saas/console-theme.js` | — | Console ka fixed violet accent (tenant branding se alag) |
+| `src/services/superadmin.js` | — | Super admin session flag (localStorage, demo-only) |
 
 ### Badle hue files
 - `src/App.jsx` — TenantProvider + 2 naye routes
