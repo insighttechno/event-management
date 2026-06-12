@@ -422,11 +422,7 @@ export default function SuperAdmin() {
                           size="sm"
                           variant={tenant.status === 'Suspended' ? 'default' : 'ghost'}
                           className={tenant.status !== 'Suspended' ? 'text-muted-foreground hover:text-rose-400' : ''}
-                          onClick={() =>
-                            tenant.status === 'Suspended'
-                              ? toggleSuspend(tenant)
-                              : setSuspendTarget(tenant)
-                          }
+                          onClick={() => setSuspendTarget(tenant)}
                         >
                           {tenant.status === 'Suspended' ? 'Activate' : 'Suspend'}
                         </Button>
@@ -456,13 +452,20 @@ export default function SuperAdmin() {
         className="dark"
         open={!!suspendTarget}
         onOpenChange={(open) => !open && setSuspendTarget(null)}
-        title="Suspend this workspace?"
+        title={
+          suspendTarget?.status === 'Suspended'
+            ? 'Activate this workspace?'
+            : 'Suspend this workspace?'
+        }
         description={
           suspendTarget
-            ? `"${suspendTarget.name}" and all its users will immediately lose access to the portal. You can reactivate it anytime.`
+            ? suspendTarget.status === 'Suspended'
+              ? `"${suspendTarget.name}" will be reactivated and all its users will regain access to the portal immediately.`
+              : `"${suspendTarget.name}" and all its users will immediately lose access to the portal. You can reactivate it anytime.`
             : ''
         }
-        confirmLabel="Suspend"
+        confirmLabel={suspendTarget?.status === 'Suspended' ? 'Activate' : 'Suspend'}
+        confirmVariant={suspendTarget?.status === 'Suspended' ? 'default' : 'destructive'}
         onConfirm={() => toggleSuspend(suspendTarget)}
       />
     </div>

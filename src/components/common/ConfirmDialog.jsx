@@ -14,6 +14,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = 'Delete',
+  confirmVariant = 'destructive',
   onConfirm,
   className,
 }) {
@@ -30,7 +31,7 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            variant={confirmVariant}
             onClick={() => {
               onConfirm()
               onOpenChange(false)
