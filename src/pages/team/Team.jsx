@@ -1,11 +1,12 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Plus, Check, Mail, Phone, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,9 +16,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { getTeamMembers, setTeamMembers, subscribeTeam } from '@/lib/team-store'
 import { teamModules } from '@/data/users'
 
@@ -40,6 +38,73 @@ export default function Team() {
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (m) => { setEditing(m); setForm({ ...emptyForm, ...m }); setView('form') }
+
+  const columns = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Member',
+      sortable: true,
+      cell: (m) => (
+        <div className="flex items-center gap-3">
+          <Avatar size="sm"><AvatarFallback className="bg-primary/10 text-primary">{m.initials}</AvatarFallback></Avatar>
+          <div className="min-w-0">
+            <p className="font-medium">{m.name}</p>
+            <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><Mail className="size-3" />{m.email}</span>
+              {m.phone && <span className="inline-flex items-center gap-1"><Phone className="size-3" />{m.phone}</span>}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      sortable: true,
+      cell: (m) => <Badge className={roleTone(m.role)} variant="secondary">{m.role}</Badge>,
+    },
+    {
+      key: 'brandAccess',
+      header: 'Brand access',
+      sortable: true,
+      className: 'text-sm text-muted-foreground',
+      cell: (m) => m.brandAccess || 'All Brands',
+    },
+    {
+      key: 'modules',
+      header: 'Can access',
+      cell: (m) => ((m.modules || []).length >= teamModules.length
+        ? <Badge className="bg-primary/15 text-primary" variant="secondary">Full access</Badge>
+        : (
+          <div className="flex max-w-xs flex-wrap gap-1">
+            {(m.modules || []).slice(0, 4).map((mod) => <Badge key={mod} variant="outline" className="text-[10px]">{mod}</Badge>)}
+            {(m.modules || []).length > 4 && <Badge variant="outline" className="text-[10px]">+{(m.modules || []).length - 4} more</Badge>}
+          </div>
+        )),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      cell: (m) => <Badge className={statusTone(m.status)} variant="secondary">{m.status}</Badge>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      stopClick: true,
+      headClassName: 'w-28 text-right',
+      cell: (m) => (
+        <div className="flex items-center justify-end gap-1">
+          {m.status === 'Invited' && (
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.success(`Invite re-sent to ${m.email}.`)}>
+              <Send className="size-3.5" />Resend
+            </Button>
+          )}
+          <RowActions onEdit={() => startEdit(m)} onDelete={() => setDeleteTarget(m)} />
+        </div>
+      ),
+    },
+  ], [])
 
   const saveNow = () => {
     if (editing) {
@@ -151,67 +216,21 @@ export default function Team() {
           </div>
         } />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Team members</CardTitle>
-          <CardDescription>{members.length} members · {activeCount} active</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Brand access</TableHead>
-                <TableHead>Can access</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-28 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar size="sm"><AvatarFallback className="bg-primary/10 text-primary">{m.initials}</AvatarFallback></Avatar>
-                      <div className="min-w-0">
-                        <p className="font-medium">{m.name}</p>
-                        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1"><Mail className="size-3" />{m.email}</span>
-                          {m.phone && <span className="inline-flex items-center gap-1"><Phone className="size-3" />{m.phone}</span>}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell><Badge className={roleTone(m.role)} variant="secondary">{m.role}</Badge></TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{m.brandAccess || 'All Brands'}</TableCell>
-                  <TableCell>
-                    {(m.modules || []).length >= teamModules.length
-                      ? <Badge className="bg-primary/15 text-primary" variant="secondary">Full access</Badge>
-                      : (
-                        <div className="flex max-w-xs flex-wrap gap-1">
-                          {(m.modules || []).slice(0, 4).map((mod) => <Badge key={mod} variant="outline" className="text-[10px]">{mod}</Badge>)}
-                          {(m.modules || []).length > 4 && <Badge variant="outline" className="text-[10px]">+{(m.modules || []).length - 4} more</Badge>}
-                        </div>
-                      )}
-                  </TableCell>
-                  <TableCell><Badge className={statusTone(m.status)} variant="secondary">{m.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      {m.status === 'Invited' && (
-                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.success(`Invite re-sent to ${m.email}.`)}>
-                          <Send className="size-3.5" />Resend
-                        </Button>
-                      )}
-                      <RowActions onEdit={() => startEdit(m)} onDelete={() => setDeleteTarget(m)} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="Team members"
+        description={`${members.length} members · ${activeCount} active`}
+        columns={columns}
+        rows={members}
+        onRowClick={startEdit}
+        searchKeys={['name', 'email', 'phone', 'title']}
+        searchPlaceholder="Search by name, email, title…"
+        filters={[
+          { key: 'role', label: 'Role', options: roles },
+          { key: 'brandAccess', label: 'Brand access', options: brandAccessOptions, match: (m, v) => (m.brandAccess || 'All Brands') === v },
+          { key: 'status', label: 'Status', options: ['Active', 'Invited'] },
+        ]}
+        emptyMessage="No team members yet — invite one to get started."
+      />
 
       <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Remove this member?" description={deleteTarget ? `${deleteTarget.name} will lose access to the portal.` : ''}

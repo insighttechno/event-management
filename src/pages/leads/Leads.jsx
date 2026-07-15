@@ -1,17 +1,16 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {
-  BellRing, GripVertical, Mail, Phone, Plus, Send, Check, Eye,
-} from 'lucide-react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { BellRing, GripVertical, Plus, Send, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { BrandBadge } from '@/components/common/BrandBadge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { ALL_FILTER, DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,12 +19,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import { leads as initialLeads, leadStages, leadCommunications } from '@/data/leads'
+import { leadStages } from '@/data/leads'
 import { packageBrands } from '@/data/packages'
-import { addClient, getClients } from '@/lib/clients-store'
+import { followUpStatus, isNewLead } from '@/lib/lead-flow'
+import {
+  addLead, getLeads, removeLead, subscribeLeads, updateLead,
+} from '@/lib/leads-store'
 import { formatCurrency, formatDate, nextSequentialId } from '@/lib/utils'
 
 const emptyLead = {
@@ -33,57 +32,49 @@ const emptyLead = {
   source: '', stage: 'New Inquiry', assignedTo: '', value: '', nextFollowUp: '', notes: '',
 }
 
-function followUpStatus(lead) {
-  if (!lead.nextFollowUp) return null
-  const today = new Date().toISOString().slice(0, 10)
-  if (lead.nextFollowUp < today) return 'overdue'
-  if (lead.nextFollowUp === today) return 'today'
-  return 'upcoming'
-}
-
-// A lead created within the last 7 days shows as "New".
-function isNewLead(lead) {
-  if (!lead.createdAt) return false
-  return (Date.now() - new Date(lead.createdAt)) / 86400000 <= 7
-}
-
-// The lead → client journey. Each stage has a clear "next action" so the flow
-// is obvious inside the portal.
-const FLOW = [
-  { stage: 'New Inquiry', short: 'Inquiry', action: 'Send initial email', next: 'Contacted',
-    help: 'Welcome email with the Calendly booking link.', toast: (l) => `Initial email with Calendly link sent to ${l.name}. Moved to Contacted.` },
-  { stage: 'Contacted', short: 'Contacted', action: 'Mark consultation booked', next: 'Consultation Scheduled',
-    help: 'Client booked a call via Calendly.', toast: (l) => `Consultation booked with ${l.name}.` },
-  { stage: 'Consultation Scheduled', short: 'Consultation', action: 'Send intake form', next: 'Proposal Sent',
-    help: 'Client fills the intake form once — it auto-fills their profile, event details & contract.', toast: (l) => `Intake form link sent to ${l.name}. Their answers auto-populate the system.` },
-  { stage: 'Proposal Sent', short: 'Proposal', action: 'Generate & send contract', next: 'Awaiting Approval',
-    help: 'AI-drafts the contract from the intake form, then sends via Adobe Acrobat Sign.', toast: (l) => `Contract sent to ${l.name} for e-signature.` },
-  { stage: 'Awaiting Approval', short: 'Deposit', action: 'Record deposit paid', next: 'Booked',
-    help: 'Contract signed + deposit received.', toast: (l) => `Deposit recorded — ${l.name} is booked!` },
-  { stage: 'Booked', short: 'Client', action: 'Convert to client', next: null,
-    help: 'Create the client profile, assign the package and send portal login.', toast: (l) => `${l.name} converted to a client — portal access created.` },
-]
-
 export default function Leads() {
   const navigate = useNavigate()
-  const [leads, setLeads] = useState(initialLeads)
-  const [communications, setCommunications] = useState(leadCommunications)
-  const [view, setView] = useState('list')
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyLead)
+  const location = useLocation()
+  const leads = useSyncExternalStore(subscribeLeads, getLeads)
+
+  // The detail page sends us here to edit — open straight into the form rather
+  // than making the user find the row again.
+  const editIdFromNav = location.state?.editId
+  const leadFromNav = editIdFromNav ? getLeads().find((l) => l.id === editIdFromNav) : null
+
+  const [view, setView] = useState(leadFromNav ? 'form' : 'list')
+  const [editing, setEditing] = useState(leadFromNav)
+  const [form, setForm] = useState(() =>
+    leadFromNav ? { ...leadFromNav, value: String(leadFromNav.value ?? '') } : emptyLead
+  )
   const [confirmSave, setConfirmSave] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [detailId, setDetailId] = useState(null)
   const [dragOverStage, setDragOverStage] = useState(null)
-  const [commType, setCommType] = useState('Call')
-  const [commSummary, setCommSummary] = useState('')
 
-  const detailLead = leads.find((l) => l.id === detailId) ?? null
+  // Filters live in the URL, so a filtered view is bookmarkable, linkable from
+  // the dashboard and survives a refresh. The table is CONTROLLED from here so
+  // the strip button and the Follow-up dropdown can never disagree — they set
+  // the same single value.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filterValues = Object.fromEntries(searchParams)
+
+  const handleFilterChange = (next) => {
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(next)) {
+      if (value && value !== ALL_FILTER) params.set(key, value)
+    }
+    setSearchParams(params)
+  }
+
+  const followUpOnly = filterValues.followUp === 'due'
+  const toggleFollowUps = () =>
+    handleFilterChange({ ...filterValues, followUp: followUpOnly ? undefined : 'due' })
+
   const setField = (k, v) => setForm((prev) => ({ ...prev, [k]: v }))
 
   const startAdd = () => { setEditing(null); setForm(emptyLead); setView('form') }
   const startEdit = (lead) => { setEditing(lead); setForm({ ...lead, value: String(lead.value ?? '') }); setView('form') }
-  const openDetail = (id) => { setDetailId(id); setView('detail') }
+  const openDetail = (lead) => navigate(`/admin/leads/${lead.id}`)
 
   const dueFollowUps = useMemo(
     () => leads.filter((l) => ['overdue', 'today'].includes(followUpStatus(l)))
@@ -91,69 +82,112 @@ export default function Leads() {
     [leads]
   )
 
+  // Newest leads always on top of the list.
+  const displayLeads = useMemo(
+    () => [...leads].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    [leads]
+  )
+
+
   const saveNow = () => {
     const payload = { ...form, value: Number(form.value) || 0 }
     if (editing) {
-      setLeads((prev) => prev.map((l) => (l.id === editing.id ? { ...l, ...payload } : l)))
+      updateLead(editing.id, payload)
       toast.success(`Lead "${payload.name}" updated.`)
     } else {
-      const newLead = { ...payload, id: nextSequentialId(leads, 'L'), createdAt: new Date().toISOString().slice(0, 10) }
-      setLeads((prev) => [newLead, ...prev])
+      addLead({ ...payload, id: nextSequentialId(leads, 'L'), createdAt: new Date().toISOString().slice(0, 10) })
       toast.success(`Lead "${payload.name}" added.`)
     }
     setView('list')
   }
 
   const removeNow = () => {
-    setLeads((prev) => prev.filter((l) => l.id !== deleteTarget.id))
+    removeLead(deleteTarget.id)
     toast.success(`Lead "${deleteTarget.name}" deleted.`)
-    if (detailId === deleteTarget.id) setView('list')
   }
 
   const moveLeadToStage = (leadId, stage) => {
     const lead = leads.find((l) => l.id === leadId)
     if (!lead || lead.stage === stage) return
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage } : l)))
+    updateLead(leadId, { stage })
     toast.success(`"${lead.name}" moved to ${stage}.`)
   }
 
   const sendReminder = (lead) => toast.success(`Follow-up reminder sent to ${lead.assignedTo} for "${lead.name}".`)
 
-  const advanceFlow = (lead) => {
-    const step = FLOW.find((s) => s.stage === lead.stage)
-    if (!step) return
-    // Final step: create a real client record in the Clients module.
-    if (step.next === null) {
-      if (lead.converted) return
-      const id = `CL-${String(getClients().length + 1).padStart(2, '0')}`
-      addClient({
-        id, name: lead.name, brand: lead.brand, email: lead.email, phone: lead.phone,
-        package: '', event: lead.eventType || '', eventDate: '', status: 'Active',
-        onboarding: 'Pending', creditsUsed: 0, creditsTotal: 0, balance: 0,
-      })
-      setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, converted: true } : l)))
-      toast.success(step.toast(lead))
-      return
-    }
-    toast.success(step.toast(lead))
-    setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, stage: step.next } : l)))
-  }
-
-  const addCommunication = (leadId) => {
-    if (!commSummary.trim()) return
-    setCommunications((prev) => ({
-      ...prev,
-      [leadId]: [...(prev[leadId] ?? []), {
-        id: `C-${(prev[leadId]?.length ?? 0) + 1}`, type: commType,
-        summary: commSummary.trim(), date: new Date().toISOString().slice(0, 10), by: 'You',
-      }],
-    }))
-    setCommSummary('')
-    toast.success('Communication logged.')
-  }
-
-  // Newest leads always on top of the list.
-  const displayLeads = [...leads].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const columns = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Lead',
+      sortable: true,
+      // Event type sits under the name instead of taking its own column, and
+      // email/source moved to the detail page — the admin team works on small
+      // laptops and horizontal scrolling was hurting them.
+      cell: (lead) => (
+        <>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{lead.name}</span>
+            {isNewLead(lead)
+              ? <Badge variant="secondary" className="bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-600">New</Badge>
+              : <span className="text-[10px] text-muted-foreground">{formatDate(lead.createdAt)}</span>}
+          </div>
+          <p className="text-xs text-muted-foreground">{lead.eventType || '—'}</p>
+        </>
+      ),
+    },
+    { key: 'brand', header: 'Brand', sortable: true, cell: (lead) => <BrandBadge brand={lead.brand} /> },
+    { key: 'stage', header: 'Stage', sortable: true, cell: (lead) => <Badge variant="outline">{lead.stage}</Badge> },
+    { key: 'assignedTo', header: 'Assigned to', sortable: true },
+    {
+      key: 'nextFollowUp',
+      header: 'Follow-up',
+      sortable: true,
+      cell: (lead) => {
+        const status = followUpStatus(lead)
+        if (!lead.nextFollowUp) return <span className="text-xs text-muted-foreground">—</span>
+        if (status === 'overdue') {
+          return <Badge variant="destructive" className="text-[10px]">Overdue · {formatDate(lead.nextFollowUp)}</Badge>
+        }
+        if (status === 'today') {
+          return <Badge variant="secondary" className="bg-amber-500/15 text-[10px] text-amber-700">Due today</Badge>
+        }
+        return <span className="text-sm text-muted-foreground">{formatDate(lead.nextFollowUp)}</span>
+      },
+    },
+    {
+      key: 'value',
+      header: 'Value',
+      sortable: true,
+      headClassName: 'text-right',
+      className: 'text-right font-medium',
+      cell: (lead) => formatCurrency(lead.value),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      stopClick: true,
+      headClassName: 'w-28 text-right',
+      // No "View" button — the whole row already opens the lead, so it was
+      // just costing width.
+      cell: (lead) => (
+        <div className="flex items-center justify-end gap-1">
+          {/* Remind only where it's actually actionable — kept from the old
+              follow-ups card so nothing was lost when it became a strip. */}
+          {['overdue', 'today'].includes(followUpStatus(lead)) && (
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => sendReminder(lead)}>
+              <Send className="size-3.5" />Remind
+            </Button>
+          )}
+          <RowActions
+            onView={() => openDetail(lead)}
+            onEdit={() => startEdit(lead)}
+            onDelete={() => setDeleteTarget(lead)}
+          />
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [])
 
   // =================== IN-PAGE FORM ===================
   if (view === 'form') {
@@ -239,133 +273,6 @@ export default function Leads() {
     )
   }
 
-  // =================== IN-PAGE DETAIL ===================
-  if (view === 'detail' && detailLead) {
-    const status = followUpStatus(detailLead)
-    const comms = communications[detailLead.id] ?? []
-    return (
-      <div className="max-w-4xl">
-        <BackHeader title={detailLead.name} backLabel="Back to leads" onBack={() => setView('list')}
-          description={`${detailLead.eventType || 'Lead'} · ${detailLead.source || '—'} · Created ${formatDate(detailLead.createdAt)}`} />
-
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <BrandBadge brand={detailLead.brand} />
-            <Badge variant="outline">{detailLead.stage}</Badge>
-            <Badge variant="secondary">{formatCurrency(detailLead.value)}</Badge>
-            {status && ['overdue', 'today'].includes(status) && (
-              <Badge variant={status === 'overdue' ? 'destructive' : 'secondary'}>
-                <BellRing className="size-3" /> Follow-up {status === 'overdue' ? 'overdue' : 'due today'}
-              </Badge>
-            )}
-            <div className="ml-auto flex gap-2">
-              <Button variant="outline" onClick={() => startEdit(detailLead)}>Edit</Button>
-              <Button variant="destructive" onClick={() => setDeleteTarget(detailLead)}>Delete</Button>
-            </div>
-          </div>
-
-          {(() => {
-            const stageIndex = FLOW.findIndex((s) => s.stage === detailLead.stage)
-            const step = FLOW.find((s) => s.stage === detailLead.stage)
-            return (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Workflow — next step</CardTitle>
-                  <CardDescription>From website inquiry through to a booked client</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {FLOW.map((s, i) => (
-                      <div key={s.stage} className="flex items-center gap-1.5">
-                        <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium',
-                          i < stageIndex ? 'bg-primary/15 text-primary'
-                            : i === stageIndex ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'bg-muted text-muted-foreground')}>
-                          {s.short}
-                        </span>
-                        {i < FLOW.length - 1 && <span className="text-muted-foreground/40">→</span>}
-                      </div>
-                    ))}
-                  </div>
-                  {detailLead.converted ? (
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-                      <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
-                        <Check className="size-4" /> Converted to client — profile created in Clients.
-                      </p>
-                      <Button variant="outline" className="shrink-0" onClick={() => navigate('/admin/clients')}>View in Clients</Button>
-                    </div>
-                  ) : step ? (
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-card p-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">Next: {step.action}</p>
-                        <p className="text-xs text-muted-foreground">{step.help}</p>
-                      </div>
-                      <Button className="shrink-0 gap-1.5" onClick={() => advanceFlow(detailLead)}>{step.action}</Button>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">This lead is closed — no further steps.</p>
-                  )}
-                  <a href="/intake" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                    Preview the client intake form ↗
-                  </a>
-                </CardContent>
-              </Card>
-            )
-          })()}
-
-          <Card>
-            <CardContent className="grid gap-3 p-6 text-sm sm:grid-cols-2">
-              <p className="flex items-center gap-2"><Mail className="size-4 text-muted-foreground" />{detailLead.email || '—'}</p>
-              <p className="flex items-center gap-2"><Phone className="size-4 text-muted-foreground" />{detailLead.phone || '—'}</p>
-              <p className="text-muted-foreground">Assigned to <span className="font-medium text-foreground">{detailLead.assignedTo || '—'}</span></p>
-              <p className="text-muted-foreground">Next follow-up <span className="font-medium text-foreground">{detailLead.nextFollowUp ? formatDate(detailLead.nextFollowUp) : '—'}</span></p>
-              {detailLead.notes && <p className="rounded-lg bg-muted/50 p-3 sm:col-span-2">{detailLead.notes}</p>}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Communication history</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {comms.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No communications logged yet.</p>
-              ) : (
-                <ol className="relative flex flex-col gap-3 border-l border-border pl-4">
-                  {comms.map((entry) => (
-                    <li key={entry.id} className="relative">
-                      <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-card bg-primary" />
-                      <p className="text-sm"><span className="font-medium">{entry.type}</span>
-                        <span className="text-muted-foreground"> · {formatDate(entry.date)} · {entry.by}</span></p>
-                      <p className="text-sm text-muted-foreground">{entry.summary}</p>
-                    </li>
-                  ))}
-                </ol>
-              )}
-              <div className="flex flex-col gap-2 border-t border-border pt-4">
-                <Label className="text-sm font-semibold">Log communication</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Select value={commType} onValueChange={setCommType}>
-                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                    <SelectContent>{['Call', 'Email', 'Meeting', 'Text'].map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Input className="min-w-48 flex-1" value={commSummary} onChange={(e) => setCommSummary(e.target.value)} placeholder="What was discussed?" />
-                  <Button onClick={() => addCommunication(detailLead.id)}>Add entry</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <ConfirmDialog
-          open={!!deleteTarget}
-          onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title="Delete this lead?"
-          description={deleteTarget ? `"${deleteTarget.name}" will be removed from the pipeline.` : ''}
-          onConfirm={removeNow}
-        />
-      </div>
-    )
-  }
-
   // =================== LIST ===================
   return (
     <div className="flex flex-col gap-6">
@@ -375,29 +282,49 @@ export default function Leads() {
         action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />Add lead</Button>}
       />
 
-      {dueFollowUps.length > 0 && (
-        <Card className="border-amber-500/40 bg-amber-500/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><BellRing className="size-4 text-amber-600" />Follow-ups due</CardTitle>
-            <CardDescription>{dueFollowUps.length} lead{dueFollowUps.length > 1 ? 's' : ''} need attention today</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {dueFollowUps.map((lead) => (
-              <div key={lead.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
-                <div className="min-w-0">
-                  <button type="button" className="truncate text-sm font-medium hover:underline" onClick={() => openDetail(lead.id)}>{lead.name}</button>
-                  <p className="text-xs text-muted-foreground">{lead.brand} · {lead.stage} · {lead.assignedTo}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={followUpStatus(lead) === 'overdue' ? 'destructive' : 'secondary'}>
-                    {followUpStatus(lead) === 'overdue' ? `Overdue · ${formatDate(lead.nextFollowUp)}` : 'Due today'}
-                  </Badge>
-                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => sendReminder(lead)}><Send className="size-3.5" />Remind</Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {/* One line, not a card — the leads table stays the hero, but a due
+          follow-up is still impossible to walk past. Also renders when the
+          filter is on but nothing is due (a stale bookmarked URL), otherwise
+          there'd be no way back to all leads. */}
+      {(dueFollowUps.length > 0 || followUpOnly) && (
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5',
+            dueFollowUps.length > 0
+              ? 'border-amber-500/40 bg-amber-500/5'
+              : 'border-border bg-muted/40'
+          )}
+        >
+          <BellRing
+            className={cn(
+              'size-4 shrink-0',
+              dueFollowUps.length > 0 ? 'text-amber-600' : 'text-muted-foreground'
+            )}
+          />
+          <p className="min-w-0 flex-1 text-sm">
+            {dueFollowUps.length > 0 ? (
+              <>
+                <span className="font-medium">
+                  {dueFollowUps.length} follow-up{dueFollowUps.length > 1 ? 's' : ''} due
+                </span>
+                <span className="text-muted-foreground">
+                  {' '}— {dueFollowUps.slice(0, 3).map((l) => l.name).join(', ')}
+                  {dueFollowUps.length > 3 && ` +${dueFollowUps.length - 3} more`}
+                </span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">Nothing needs following up right now.</span>
+            )}
+          </p>
+          <Button
+            size="sm"
+            variant={followUpOnly ? 'default' : 'outline'}
+            className="shrink-0"
+            onClick={toggleFollowUps}
+          >
+            {followUpOnly ? 'Show all leads' : 'Show these'}
+          </Button>
+        </div>
       )}
 
       <Tabs defaultValue="table">
@@ -425,7 +352,7 @@ export default function Leads() {
                   {stageLeads.map((lead) => (
                     <div key={lead.id} draggable
                       onDragStart={(e) => e.dataTransfer.setData('text/plain', lead.id)}
-                      onClick={() => openDetail(lead.id)}
+                      onClick={() => openDetail(lead)}
                       className="group cursor-grab rounded-lg border border-border bg-card p-3 shadow-xs transition-shadow hover:shadow-sm active:cursor-grabbing">
                       <div className="flex items-start justify-between gap-1">
                         <div className="flex min-w-0 items-center gap-1.5">
@@ -451,57 +378,38 @@ export default function Leads() {
         </TabsContent>
 
         <TabsContent value="table" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>All leads</CardTitle>
-              <CardDescription>{leads.length} on record</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Lead</TableHead>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Event type</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead>Assigned to</TableHead>
-                    <TableHead className="text-right">Value</TableHead>
-                    <TableHead className="w-32 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayLeads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <button type="button" className="text-left font-medium hover:underline" onClick={() => openDetail(lead.id)}>{lead.name}</button>
-                          {isNewLead(lead)
-                            ? <Badge variant="secondary" className="bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-600">New</Badge>
-                            : <span className="text-[10px] text-muted-foreground">{formatDate(lead.createdAt)}</span>}
-                        </div>
-                        <p className="text-xs text-muted-foreground">{lead.email}</p>
-                      </TableCell>
-                      <TableCell><BrandBadge brand={lead.brand} /></TableCell>
-                      <TableCell>{lead.eventType}</TableCell>
-                      <TableCell className="text-muted-foreground">{lead.source}</TableCell>
-                      <TableCell><Badge variant="outline">{lead.stage}</Badge></TableCell>
-                      <TableCell>{lead.assignedTo}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(lead.value)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openDetail(lead.id)}>
-                            <Eye className="size-3.5" />View
-                          </Button>
-                          <RowActions onEdit={() => startEdit(lead)} onDelete={() => setDeleteTarget(lead)} />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <DataTable
+            title={followUpOnly ? 'Follow-ups due' : 'All leads'}
+            columns={columns}
+            rows={displayLeads}
+            onRowClick={openDetail}
+            searchKeys={['name', 'email', 'phone', 'eventType', 'source', 'assignedTo']}
+            searchPlaceholder="Search by name, email, event type…"
+            filterValues={filterValues}
+            onFilterValuesChange={handleFilterChange}
+            filters={[
+              { key: 'brand', label: 'Brand', options: packageBrands },
+              { key: 'stage', label: 'Stage', options: leadStages },
+              {
+                key: 'followUp',
+                label: 'Follow-up',
+                options: [
+                  { label: 'Due now (overdue + today)', value: 'due' },
+                  { label: 'Overdue', value: 'overdue' },
+                  { label: 'Due today', value: 'today' },
+                  { label: 'Upcoming', value: 'upcoming' },
+                  { label: 'No follow-up set', value: 'none' },
+                ],
+                match: (lead, value) => {
+                  const s = followUpStatus(lead)
+                  if (value === 'due') return ['overdue', 'today'].includes(s)
+                  if (value === 'none') return s === null
+                  return s === value
+                },
+              },
+            ]}
+            emptyMessage="No leads yet — inquiries from the website land here."
+          />
         </TabsContent>
       </Tabs>
 

@@ -1,11 +1,12 @@
-import { useState, useSyncExternalStore } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Plus, Check, FileText, Clock, ShieldCheck, KeyRound, CalendarPlus } from 'lucide-react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Plus, Check, FileText, Clock, ShieldCheck, KeyRound, CalendarPlus, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { BrandBadge } from '@/components/common/BrandBadge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,9 +17,6 @@ import { Progress } from '@/components/ui/progress'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { getClients, setClients, subscribeClients } from '@/lib/clients-store'
 import { clientStatuses } from '@/data/clients'
 import { packages, packageBrands } from '@/data/packages'
@@ -37,10 +35,16 @@ const statusTone = (s) =>
 
 export default function Clients() {
   const navigate = useNavigate()
+  const location = useLocation()
   const clients = useSyncExternalStore(subscribeClients, getClients)
-  const [view, setView] = useState('list')
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
+
+  // The detail page sends us here to edit — open straight into the form.
+  const editIdFromNav = location.state?.editId
+  const clientFromNav = editIdFromNav ? getClients().find((c) => c.id === editIdFromNav) : null
+
+  const [view, setView] = useState(clientFromNav ? 'form' : 'list')
+  const [editing, setEditing] = useState(clientFromNav)
+  const [form, setForm] = useState(() => (clientFromNav ? { ...clientFromNav } : emptyForm))
   const [confirmSave, setConfirmSave] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
@@ -48,11 +52,87 @@ export default function Clients() {
 
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (c) => { setEditing(c); setForm({ ...c }); setView('form') }
+  const openDetail = (c) => navigate(`/admin/clients/${c.id}`)
 
   // Native scheduling for an active client's package calls (consultation credits).
   const scheduleMeeting = (c) => navigate('/admin/calendar', {
     state: { scheduleFor: { client: c.name, email: c.email, brand: c.brand } },
   })
+
+  const columns = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Client',
+      sortable: true,
+      cell: (c) => (
+        <>
+          <p className="font-medium">{c.name}</p>
+          <p className="text-xs text-muted-foreground">{c.email}</p>
+        </>
+      ),
+    },
+    { key: 'brand', header: 'Brand', sortable: true, cell: (c) => <BrandBadge brand={c.brand} /> },
+    { key: 'package', header: 'Package', sortable: true, className: 'text-sm' },
+    {
+      key: 'eventDate',
+      header: 'Event date',
+      sortable: true,
+      className: 'text-sm',
+      cell: (c) => (c.eventDate ? formatDate(c.eventDate) : '—'),
+    },
+    {
+      key: 'credits',
+      header: 'Credits',
+      sortValue: (c) => (c.creditsTotal ? c.creditsUsed / c.creditsTotal : 0),
+      sortable: true,
+      cell: (c) => (
+        <div className="w-24">
+          <div className="mb-1 text-xs text-muted-foreground">{c.creditsUsed}/{c.creditsTotal}</div>
+          <Progress value={c.creditsTotal ? (c.creditsUsed / c.creditsTotal) * 100 : 0} className="h-1.5" />
+        </div>
+      ),
+    },
+    {
+      key: 'onboarding',
+      header: 'Onboarding',
+      sortable: true,
+      cell: (c) => <Badge variant={c.onboarding === 'Acknowledged' ? 'secondary' : 'outline'}>{c.onboarding}</Badge>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      cell: (c) => <Badge className={statusTone(c.status)} variant="secondary">{c.status}</Badge>,
+    },
+    {
+      key: 'balance',
+      header: 'Balance',
+      sortable: true,
+      headClassName: 'text-right',
+      className: 'text-right font-medium',
+      cell: (c) => (c.balance ? formatCurrency(c.balance) : '—'),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      stopClick: true,
+      headClassName: 'w-44 text-right',
+      cell: (c) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openDetail(c)}>
+            <Eye className="size-3.5" />View
+          </Button>
+          {c.status === 'Active' && (
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => scheduleMeeting(c)}>
+              <CalendarPlus className="size-3.5" />Schedule
+            </Button>
+          )}
+          <RowActions onEdit={() => startEdit(c)} onDelete={() => setDeleteTarget(c)} />
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [])
 
   const saveNow = () => {
     const payload = {
@@ -201,63 +281,20 @@ export default function Clients() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All clients</CardTitle>
-          <CardDescription>{clients.length} on record</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Package</TableHead>
-                <TableHead>Event date</TableHead>
-                <TableHead>Credits</TableHead>
-                <TableHead>Onboarding</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="w-40 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clients.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <button type="button" className="text-left font-medium hover:underline" onClick={() => startEdit(c)}>{c.name}</button>
-                    <p className="text-xs text-muted-foreground">{c.email}</p>
-                  </TableCell>
-                  <TableCell><BrandBadge brand={c.brand} /></TableCell>
-                  <TableCell className="text-sm">{c.package}</TableCell>
-                  <TableCell className="text-sm">{c.eventDate ? formatDate(c.eventDate) : '—'}</TableCell>
-                  <TableCell>
-                    <div className="w-24">
-                      <div className="mb-1 text-xs text-muted-foreground">{c.creditsUsed}/{c.creditsTotal}</div>
-                      <Progress value={c.creditsTotal ? (c.creditsUsed / c.creditsTotal) * 100 : 0} className="h-1.5" />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={c.onboarding === 'Acknowledged' ? 'secondary' : 'outline'}>{c.onboarding}</Badge>
-                  </TableCell>
-                  <TableCell><Badge className={statusTone(c.status)} variant="secondary">{c.status}</Badge></TableCell>
-                  <TableCell className="text-right font-medium">{c.balance ? formatCurrency(c.balance) : '—'}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      {c.status === 'Active' && (
-                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => scheduleMeeting(c)}>
-                          <CalendarPlus className="size-3.5" />Schedule
-                        </Button>
-                      )}
-                      <RowActions onEdit={() => startEdit(c)} onDelete={() => setDeleteTarget(c)} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="All clients"
+        columns={columns}
+        rows={clients}
+        onRowClick={openDetail}
+        searchKeys={['name', 'email', 'phone', 'package', 'event']}
+        searchPlaceholder="Search by name, email, package…"
+        filters={[
+          { key: 'brand', label: 'Brand', options: packageBrands },
+          { key: 'status', label: 'Status', options: clientStatuses },
+          { key: 'onboarding', label: 'Onboarding', options: ['Pending', 'Acknowledged'] },
+        ]}
+        emptyMessage="No clients yet — convert a booked lead to create one."
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

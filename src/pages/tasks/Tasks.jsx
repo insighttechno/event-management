@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, Check, CircleAlert, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,9 +14,6 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { tasks as initialTasks, taskStatuses } from '@/data/tasks'
 import { formatDate } from '@/lib/utils'
 
@@ -46,6 +44,60 @@ export default function Tasks() {
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (t) => { setEditing(t); setForm({ ...t }); setView('form') }
+
+  const columns = useMemo(() => [
+    {
+      key: 'done',
+      header: '',
+      stopClick: true,
+      headClassName: 'w-10',
+      cell: (t) => (
+        <button
+          type="button"
+          onClick={() => toggleDone(t)}
+          title="Toggle done"
+          className={`flex size-5 items-center justify-center rounded-full border ${t.status === 'Done' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border'}`}
+        >
+          {t.status === 'Done' && <Check className="size-3.5" />}
+        </button>
+      ),
+    },
+    {
+      key: 'title',
+      header: 'Task',
+      sortable: true,
+      cell: (t) => <span className={`font-medium ${t.status === 'Done' ? 'line-through opacity-60' : ''}`}>{t.title}</span>,
+    },
+    { key: 'event', header: 'Event', sortable: true, className: 'text-sm text-muted-foreground' },
+    { key: 'assignedTo', header: 'Assigned to', sortable: true, className: 'text-sm' },
+    {
+      key: 'dueDate',
+      header: 'Due',
+      sortable: true,
+      cell: (t) => (t.dueDate
+        ? <span className={`text-sm ${isOverdue(t) ? 'font-medium text-destructive' : ''}`}>{formatDate(t.dueDate)}</span>
+        : <span className="text-xs text-muted-foreground">—</span>),
+    },
+    {
+      key: 'priority',
+      header: 'Priority',
+      sortable: true,
+      cell: (t) => <Badge className={priorityTone(t.priority)} variant="secondary">{t.priority}</Badge>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      cell: (t) => <Badge className={statusTone(t.status)} variant="secondary">{t.status}</Badge>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      stopClick: true,
+      headClassName: 'w-10',
+      cell: (t) => <RowActions onEdit={() => startEdit(t)} onDelete={() => setDeleteTarget(t)} />,
+    },
+  ], [])
 
   const saveNow = () => {
     if (editing) {
@@ -168,51 +220,20 @@ export default function Tasks() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All tasks</CardTitle>
-          <CardDescription>{openTasks.length} open · {tasks.length - openTasks.length} done</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10" />
-                <TableHead>Task</TableHead>
-                <TableHead>Event</TableHead>
-                <TableHead>Assigned to</TableHead>
-                <TableHead>Due</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((t) => (
-                <TableRow key={t.id} className={t.status === 'Done' ? 'opacity-60' : ''}>
-                  <TableCell>
-                    <button type="button" onClick={() => toggleDone(t)} title="Toggle done"
-                      className={`flex size-5 items-center justify-center rounded-full border ${t.status === 'Done' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border'}`}>
-                      {t.status === 'Done' && <Check className="size-3.5" />}
-                    </button>
-                  </TableCell>
-                  <TableCell className={`font-medium ${t.status === 'Done' ? 'line-through' : ''}`}>{t.title}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{t.event}</TableCell>
-                  <TableCell className="text-sm">{t.assignedTo}</TableCell>
-                  <TableCell>
-                    {t.dueDate
-                      ? <span className={`text-sm ${isOverdue(t) ? 'font-medium text-destructive' : ''}`}>{formatDate(t.dueDate)}</span>
-                      : <span className="text-xs text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell><Badge className={priorityTone(t.priority)} variant="secondary">{t.priority}</Badge></TableCell>
-                  <TableCell><Badge className={statusTone(t.status)} variant="secondary">{t.status}</Badge></TableCell>
-                  <TableCell><RowActions onEdit={() => startEdit(t)} onDelete={() => setDeleteTarget(t)} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="All tasks"
+        description={`${openTasks.length} open · ${tasks.length - openTasks.length} done`}
+        columns={columns}
+        rows={tasks}
+        onRowClick={startEdit}
+        searchKeys={['title', 'event', 'assignedTo']}
+        searchPlaceholder="Search by task, event, assignee…"
+        filters={[
+          { key: 'status', label: 'Status', options: taskStatuses },
+          { key: 'priority', label: 'Priority', options: priorities },
+        ]}
+        emptyMessage="No tasks yet."
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

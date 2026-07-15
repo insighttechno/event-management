@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, Check, Star, Mail, Phone } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,9 +15,6 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { vendors as initialVendors, vendorCategories } from '@/data/vendors'
 
 const emptyForm = {
@@ -34,6 +32,48 @@ export default function Vendors() {
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (v) => { setEditing(v); setForm({ ...v }); setView('form') }
+
+  const columns = useMemo(() => [
+    { key: 'name', header: 'Vendor', sortable: true, className: 'font-medium' },
+    {
+      key: 'category',
+      header: 'Category',
+      sortable: true,
+      cell: (v) => <Badge variant="outline">{v.category}</Badge>,
+    },
+    {
+      key: 'contact',
+      header: 'Contact',
+      sortable: true,
+      cell: (v) => (
+        <>
+          <p className="text-sm">{v.contact}</p>
+          <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><Phone className="size-3" />{v.phone}</span>
+            <span className="inline-flex items-center gap-1"><Mail className="size-3" />{v.email}</span>
+          </p>
+        </>
+      ),
+    },
+    {
+      key: 'rating',
+      header: 'Rating',
+      sortable: true,
+      cell: (v) => (
+        <span className="inline-flex items-center gap-1 text-sm font-medium">
+          <Star className="size-3.5 fill-amber-400 text-amber-400" />{v.rating}
+        </span>
+      ),
+    },
+    { key: 'eventsCount', header: 'Events', sortable: true, className: 'text-sm text-muted-foreground' },
+    {
+      key: 'actions',
+      header: '',
+      stopClick: true,
+      headClassName: 'w-10',
+      cell: (v) => <RowActions onEdit={() => startEdit(v)} onDelete={() => setDeleteTarget(v)} />,
+    },
+  ], [])
 
   const saveNow = () => {
     const payload = { ...form, rating: Number(form.rating) || 0 }
@@ -111,48 +151,17 @@ export default function Vendors() {
       <PageHeader title="Vendors" description="Your trusted vendor directory across both brands."
         action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />New vendor</Button>} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All vendors</CardTitle>
-          <CardDescription>{vendors.length} vendors on record</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Events</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vendors.map((v) => (
-                <TableRow key={v.id}>
-                  <TableCell className="font-medium">{v.name}</TableCell>
-                  <TableCell><Badge variant="outline">{v.category}</Badge></TableCell>
-                  <TableCell>
-                    <p className="text-sm">{v.contact}</p>
-                    <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1"><Phone className="size-3" />{v.phone}</span>
-                      <span className="inline-flex items-center gap-1"><Mail className="size-3" />{v.email}</span>
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1 text-sm font-medium">
-                      <Star className="size-3.5 fill-amber-400 text-amber-400" />{v.rating}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{v.eventsCount}</TableCell>
-                  <TableCell><RowActions onEdit={() => startEdit(v)} onDelete={() => setDeleteTarget(v)} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="All vendors"
+        description={`${vendors.length} vendors on record`}
+        columns={columns}
+        rows={vendors}
+        onRowClick={startEdit}
+        searchKeys={['name', 'contact', 'email', 'phone', 'category']}
+        searchPlaceholder="Search by vendor, contact, email…"
+        filters={[{ key: 'category', label: 'Category', options: vendorCategories }]}
+        emptyMessage="No vendors yet."
+      />
 
       <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Remove this vendor?" description={deleteTarget ? `"${deleteTarget.name}" will be removed from your directory.` : ''}

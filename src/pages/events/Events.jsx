@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, Check, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { BrandBadge } from '@/components/common/BrandBadge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,9 +15,6 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { events as initialEvents, eventStatuses } from '@/data/events'
 import { packageBrands } from '@/data/packages'
 import { formatDate } from '@/lib/utils'
@@ -45,6 +43,53 @@ export default function Events() {
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (e) => { setEditing(e); setForm({ ...e, brand: eventBrand(e) }); setView('form') }
+
+  const columns = useMemo(() => [
+    { key: 'name', header: 'Event', sortable: true, className: 'font-medium' },
+    { key: 'client', header: 'Client', sortable: true, className: 'text-sm' },
+    {
+      key: 'brand',
+      header: 'Brand',
+      sortable: true,
+      sortValue: eventBrand,
+      cell: (e) => <BrandBadge brand={eventBrand(e)} />,
+    },
+    {
+      key: 'date',
+      header: 'Date',
+      sortable: true,
+      className: 'text-sm',
+      cell: (e) => (e.date ? formatDate(e.date) : '—'),
+    },
+    { key: 'venue', header: 'Venue', sortable: true, className: 'text-sm text-muted-foreground' },
+    {
+      key: 'guestCount',
+      header: 'Guests',
+      sortable: true,
+      className: 'text-sm',
+      cell: (e) => e.guestCount || '—',
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      cell: (e) => <Badge className={statusTone(e.status)} variant="secondary">{e.status}</Badge>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      stopClick: true,
+      headClassName: 'w-28 text-right',
+      cell: (e) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => startEdit(e)}>
+            <Eye className="size-3.5" />Open
+          </Button>
+          <RowActions onEdit={() => startEdit(e)} onDelete={() => setDeleteTarget(e)} />
+        </div>
+      ),
+    },
+  ], [])
 
   const saveNow = () => {
     const payload = { ...form, guestCount: Number(form.guestCount) || 0, budget: Number(form.budget) || 0 }
@@ -139,47 +184,20 @@ export default function Events() {
       <PageHeader title="Events" description="Every wedding, shoot and celebration across both brands."
         action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />New event</Button>} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All events</CardTitle>
-          <CardDescription>{events.length} events · {upcoming} upcoming</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Event</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Venue</TableHead>
-                <TableHead>Guests</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-28 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {events.map((e) => (
-                <TableRow key={e.id}>
-                  <TableCell className="font-medium">{e.name}</TableCell>
-                  <TableCell className="text-sm">{e.client}</TableCell>
-                  <TableCell><BrandBadge brand={eventBrand(e)} /></TableCell>
-                  <TableCell className="text-sm">{e.date ? formatDate(e.date) : '—'}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{e.venue}</TableCell>
-                  <TableCell className="text-sm">{e.guestCount || '—'}</TableCell>
-                  <TableCell><Badge className={statusTone(e.status)} variant="secondary">{e.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => startEdit(e)}><Eye className="size-3.5" />Open</Button>
-                      <RowActions onEdit={() => startEdit(e)} onDelete={() => setDeleteTarget(e)} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="All events"
+        description={`${events.length} events · ${upcoming} upcoming`}
+        columns={columns}
+        rows={events}
+        onRowClick={startEdit}
+        searchKeys={['name', 'client', 'venue', 'planner', 'type']}
+        searchPlaceholder="Search by event, client, venue…"
+        filters={[
+          { key: 'brand', label: 'Brand', options: packageBrands, match: (e, v) => eventBrand(e) === v },
+          { key: 'status', label: 'Status', options: eventStatuses },
+        ]}
+        emptyMessage="No events yet."
+      />
 
       <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this event?" description={deleteTarget ? `"${deleteTarget.name}" will be removed.` : ''}

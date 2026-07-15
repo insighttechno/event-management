@@ -56,7 +56,7 @@ export function SidebarBrand({ subtitle }) {
     const clientBrand = brand === 'senses-at-play' ? BRANDS[2] : BRANDS[1]
     const cfg = getBrandConfig(brand)
     return (
-      <div className="border-b border-sidebar-border p-3">
+      <div className="shrink-0 border-b border-sidebar-border p-3">
         <div className="flex items-center gap-3 px-2 py-2">
           <BrandMark brand={clientBrand} />
           <div className="min-w-0 flex-1 leading-tight">
@@ -69,7 +69,7 @@ export function SidebarBrand({ subtitle }) {
   }
 
   return (
-    <div className="border-b border-sidebar-border p-3">
+    <div className="shrink-0 border-b border-sidebar-border p-3">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-sidebar-accent">
@@ -139,7 +139,7 @@ export function SidebarNav({ items, onNavigate }) {
   let lastSection = null
 
   return (
-    <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
+    <nav className="scrollbar-on-dark flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
       {visible.map((item) => {
         const showSection = item.section && item.section !== lastSection
         lastSection = item.section
@@ -205,7 +205,7 @@ export function SidebarUser({ loginPath = '/admin/login' }) {
   if (!user) return null
 
   return (
-    <div className="border-t border-sidebar-border p-3">
+    <div className="shrink-0 border-t border-sidebar-border p-3">
       <div className="flex items-center gap-3 rounded-lg px-2 py-2">
         <Avatar size="sm">
           <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">

@@ -10,6 +10,7 @@ import ClientLogin from '@/pages/auth/ClientLogin'
 import AdminLogin from '@/pages/auth/AdminLogin'
 import Dashboard from '@/pages/dashboard/Dashboard'
 import Leads from '@/pages/leads/Leads'
+import LeadDetail from '@/pages/leads/LeadDetail'
 import Events from '@/pages/events/Events'
 import Vendors from '@/pages/vendors/Vendors'
 import Tasks from '@/pages/tasks/Tasks'
@@ -20,6 +21,7 @@ import Team from '@/pages/team/Team'
 import Settings from '@/pages/settings/Settings'
 
 import Clients from '@/pages/clients/Clients'
+import ClientDetail from '@/pages/clients/ClientDetail'
 import Packages from '@/pages/packages/Packages'
 import Calendar from '@/pages/calendar/Calendar'
 import Contracts from '@/pages/contracts/Contracts'
@@ -61,8 +63,10 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="leads" element={<Leads />} />
+            <Route path="leads/:id" element={<LeadDetail />} />
             <Route path="calendar" element={<Calendar />} />
             <Route path="clients" element={<Clients />} />
+            <Route path="clients/:id" element={<ClientDetail />} />
             <Route path="packages" element={<Packages />} />
             <Route path="contracts" element={<Contracts />} />
             <Route path="events" element={<Events />} />

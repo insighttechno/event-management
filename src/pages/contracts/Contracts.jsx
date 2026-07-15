@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, Send, Sparkles, Eye, PenLine, CheckCircle2, Clock, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { BrandBadge } from '@/components/common/BrandBadge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { DataTable } from '@/components/common/DataTable'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -13,9 +14,6 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { contracts as initialContracts } from '@/data/finance'
 import { clients } from '@/data/clients'
 import { formatDate } from '@/lib/utils'
@@ -73,6 +71,50 @@ export default function Contracts() {
 
   const detail = contracts.find((c) => c.id === detailId) ?? null
   const selectedClient = clients.find((c) => c.id === form.clientId) ?? null
+
+  const openDetail = (c) => { setDetailId(c.id); setView('detail') }
+
+  const columns = useMemo(() => [
+    {
+      key: 'title',
+      header: 'Contract',
+      sortable: true,
+      cell: (c) => (
+        <>
+          <p className="font-medium">{c.title}</p>
+          <p className="text-xs text-muted-foreground">{c.id}</p>
+        </>
+      ),
+    },
+    { key: 'client', header: 'Client', sortable: true },
+    { key: 'brand', header: 'Brand', sortable: true, cell: (c) => <BrandBadge brand={c.brand} /> },
+    { key: 'sentDate', header: 'Sent', sortable: true, className: 'text-sm', cell: (c) => formatDate(c.sentDate) },
+    {
+      key: 'signedDate',
+      header: 'Signed',
+      sortable: true,
+      className: 'text-sm',
+      cell: (c) => (c.signedDate ? formatDate(c.signedDate) : '—'),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      cell: (c) => <Badge className={statusTone(c.status)} variant="secondary">{c.status}</Badge>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      stopClick: true,
+      headClassName: 'w-24 text-right',
+      className: 'text-right',
+      cell: (c) => (
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openDetail(c)}>
+          <Eye className="size-3.5" />View
+        </Button>
+      ),
+    },
+  ], [])
 
   const generateDraft = () => {
     if (!selectedClient) return
@@ -252,44 +294,17 @@ export default function Contracts() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All contracts</CardTitle>
-          <CardDescription>{contracts.length} on record · {awaiting} awaiting signature</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Contract</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Sent</TableHead>
-                <TableHead>Signed</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-24 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {contracts.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.title}</TableCell>
-                  <TableCell>{c.client}</TableCell>
-                  <TableCell><BrandBadge brand={c.brand} /></TableCell>
-                  <TableCell className="text-sm">{formatDate(c.sentDate)}</TableCell>
-                  <TableCell className="text-sm">{c.signedDate ? formatDate(c.signedDate) : '—'}</TableCell>
-                  <TableCell><Badge className={statusTone(c.status)} variant="secondary">{c.status}</Badge></TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setDetailId(c.id); setView('detail') }}>
-                      <Eye className="size-3.5" />View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="All contracts"
+        description={`${contracts.length} on record · ${awaiting} awaiting signature`}
+        columns={columns}
+        rows={contracts}
+        onRowClick={openDetail}
+        searchKeys={['title', 'client', 'event', 'id']}
+        searchPlaceholder="Search by contract, client, event…"
+        filters={[{ key: 'status', label: 'Status', options: ['Signed', 'Awaiting Signature'] }]}
+        emptyMessage="No contracts yet — draft one from a client's intake form."
+      />
     </div>
   )
 }

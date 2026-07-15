@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Plus, Check, FileText, Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { BackHeader } from '@/components/common/BackHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,9 +15,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { documents as initialDocuments, documentFolders } from '@/data/documents'
 import { formatDate } from '@/lib/utils'
 
@@ -42,6 +40,51 @@ export default function Documents() {
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (d) => { setEditing(d); setForm({ ...d }); setView('form') }
+
+  const columns = useMemo(() => [
+    {
+      key: 'name',
+      header: 'Name',
+      sortable: true,
+      cell: (d) => (
+        <span className="inline-flex items-center gap-2 font-medium">
+          <FileText className="size-4 shrink-0 text-muted-foreground" />{d.name}
+        </span>
+      ),
+    },
+    { key: 'folder', header: 'Folder', sortable: true, cell: (d) => <Badge variant="outline">{d.folder}</Badge> },
+    { key: 'client', header: 'Client', sortable: true, className: 'text-sm' },
+    { key: 'size', header: 'Size', sortable: true, className: 'text-sm text-muted-foreground' },
+    {
+      key: 'uploadedAt',
+      header: 'Uploaded',
+      sortable: true,
+      className: 'text-sm',
+      cell: (d) => formatDate(d.uploadedAt),
+    },
+    {
+      key: 'sharedWithClient',
+      header: 'Shared',
+      sortable: true,
+      cell: (d) => (d.sharedWithClient
+        ? <Badge className="bg-emerald-500/15 text-emerald-700" variant="secondary">Shared</Badge>
+        : <Badge variant="outline">Private</Badge>),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      stopClick: true,
+      headClassName: 'w-24 text-right',
+      cell: (d) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.success(`Downloading ${d.name}.`)}>
+            <Download className="size-3.5" />Download
+          </Button>
+          <RowActions onEdit={() => startEdit(d)} onDelete={() => setDeleteTarget(d)} />
+        </div>
+      ),
+    },
+  ], [])
 
   const saveNow = () => {
     if (editing) {
@@ -118,53 +161,25 @@ export default function Documents() {
       <PageHeader title="Documents" description="Secure storage for contracts, permits and files — for both parties."
         action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />Upload document</Button>} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All documents</CardTitle>
-          <CardDescription>{documents.length} files · {shared} shared with clients</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Folder</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Uploaded</TableHead>
-                <TableHead>Shared</TableHead>
-                <TableHead className="w-24 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {documents.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-2 font-medium">
-                      <FileText className="size-4 shrink-0 text-muted-foreground" />{d.name}
-                    </span>
-                  </TableCell>
-                  <TableCell><Badge variant="outline">{d.folder}</Badge></TableCell>
-                  <TableCell className="text-sm">{d.client}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{d.size}</TableCell>
-                  <TableCell className="text-sm">{formatDate(d.uploadedAt)}</TableCell>
-                  <TableCell>
-                    {d.sharedWithClient
-                      ? <Badge className="bg-emerald-500/15 text-emerald-700" variant="secondary">Shared</Badge>
-                      : <Badge variant="outline">Private</Badge>}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.success(`Downloading ${d.name}.`)}><Download className="size-3.5" />Download</Button>
-                      <RowActions onEdit={() => startEdit(d)} onDelete={() => setDeleteTarget(d)} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="All documents"
+        description={`${documents.length} files · ${shared} shared with clients`}
+        columns={columns}
+        rows={documents}
+        onRowClick={startEdit}
+        searchKeys={['name', 'client', 'folder']}
+        searchPlaceholder="Search by file name, client…"
+        filters={[
+          { key: 'folder', label: 'Folder', options: documentFolders },
+          {
+            key: 'sharedWithClient',
+            label: 'Sharing',
+            options: [{ label: 'Shared', value: 'shared' }, { label: 'Private', value: 'private' }],
+            match: (d, v) => (v === 'shared' ? d.sharedWithClient : !d.sharedWithClient),
+          },
+        ]}
+        emptyMessage="No documents yet — upload one to get started."
+      />
 
       <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this document?" description={deleteTarget ? `"${deleteTarget.name}" will be permanently removed.` : ''}

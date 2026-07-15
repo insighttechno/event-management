@@ -12,6 +12,7 @@ import { BackHeader } from '@/components/common/BackHeader'
 import { BrandBadge } from '@/components/common/BrandBadge'
 import { StatCard } from '@/components/common/StatCard'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { DataTable } from '@/components/common/DataTable'
 import { RowActions } from '@/components/common/RowActions'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,9 +23,6 @@ import { Progress } from '@/components/ui/progress'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import { invoices as initialInvoices, monthlyRevenue, paymentMethods } from '@/data/finance'
 import { packageBrands } from '@/data/packages'
 import { formatCurrency, formatDate, nextSequentialId } from '@/lib/utils'
@@ -64,6 +62,59 @@ export default function Payments() {
 
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (inv) => { setEditing(inv); setForm({ ...inv }); setView('form') }
+  const openDetail = (inv) => { setDetailId(inv.id); setView('detail') }
+
+  const columns = useMemo(() => [
+    { key: 'id', header: 'Invoice', sortable: true, className: 'font-medium' },
+    { key: 'client', header: 'Client', sortable: true },
+    { key: 'brand', header: 'Brand', sortable: true, cell: (inv) => <BrandBadge brand={inv.brand} /> },
+    {
+      key: 'dueDate',
+      header: 'Due date',
+      sortable: true,
+      cell: (inv) => (
+        <span className={`text-sm ${isOverdue(inv) ? 'font-medium text-destructive' : ''}`}>
+          {inv.dueDate ? formatDate(inv.dueDate) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      cell: (inv) => <Badge className={statusTone(inv.status)} variant="secondary">{inv.status}</Badge>,
+    },
+    {
+      key: 'paid',
+      header: 'Paid',
+      sortable: true,
+      headClassName: 'text-right',
+      className: 'text-right text-muted-foreground',
+      cell: (inv) => formatCurrency(inv.paid),
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      sortable: true,
+      headClassName: 'text-right',
+      className: 'text-right font-medium',
+      cell: (inv) => formatCurrency(inv.amount),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      stopClick: true,
+      headClassName: 'w-28 text-right',
+      cell: (inv) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openDetail(inv)}>
+            <Eye className="size-3.5" />View
+          </Button>
+          <RowActions onEdit={() => startEdit(inv)} onDelete={() => setDeleteTarget(inv)} />
+        </div>
+      ),
+    },
+  ], [])
 
   const saveNow = () => {
     const payload = { ...form, amount: Number(form.amount) || 0, deposit: Number(form.deposit) || 0, paid: Number(form.paid) || 0 }
@@ -284,49 +335,20 @@ export default function Payments() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invoices</CardTitle>
-          <CardDescription>{invoices.length} invoices across both brands</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Due date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Paid</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="w-28 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium">{inv.id}</TableCell>
-                  <TableCell>{inv.client}</TableCell>
-                  <TableCell><BrandBadge brand={inv.brand} /></TableCell>
-                  <TableCell>
-                    <span className={`text-sm ${isOverdue(inv) ? 'font-medium text-destructive' : ''}`}>{inv.dueDate ? formatDate(inv.dueDate) : '—'}</span>
-                  </TableCell>
-                  <TableCell><Badge className={statusTone(inv.status)} variant="secondary">{inv.status}</Badge></TableCell>
-                  <TableCell className="text-right text-muted-foreground">{formatCurrency(inv.paid)}</TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(inv.amount)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setDetailId(inv.id); setView('detail') }}><Eye className="size-3.5" />View</Button>
-                      <RowActions onEdit={() => startEdit(inv)} onDelete={() => setDeleteTarget(inv)} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="Invoices"
+        description={`${invoices.length} invoices across both brands`}
+        columns={columns}
+        rows={invoices}
+        onRowClick={openDetail}
+        searchKeys={['id', 'client', 'event']}
+        searchPlaceholder="Search by invoice, client, event…"
+        filters={[
+          { key: 'brand', label: 'Brand', options: packageBrands },
+          { key: 'status', label: 'Status', options: ['Paid', 'Partially Paid', 'Awaiting Payment'] },
+        ]}
+        emptyMessage="No invoices raised yet."
+      />
 
       <Card>
         <CardHeader>

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { CalendarHeart, Camera, Film, BadgeCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { clientNavItems } from '@/lib/navigation'
@@ -19,7 +19,7 @@ function PlanningEventCard({ event }) {
   const days = daysUntil(event.date)
 
   return (
-    <div className="relative mx-3 mt-3 overflow-hidden rounded-2xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/65 p-3 text-sidebar-primary-foreground shadow-lg">
+    <div className="relative mx-3 mt-3 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/65 p-3 text-sidebar-primary-foreground shadow-lg">
       <span className="pointer-events-none absolute -top-8 -right-6 size-24 rounded-full bg-white/10 blur-2xl" />
       <div className="relative">
         <div className="flex items-center justify-between gap-2">
@@ -58,7 +58,7 @@ function GallerySessionCard({ cfg, event, gallery }) {
   const delivered = gallery?.status === 'Delivered'
 
   return (
-    <div className="relative mx-3 mt-3 overflow-hidden rounded-2xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/65 p-3 text-sidebar-primary-foreground shadow-lg">
+    <div className="relative mx-3 mt-3 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/65 p-3 text-sidebar-primary-foreground shadow-lg">
       <span className="pointer-events-none absolute -top-8 -right-6 size-24 rounded-full bg-white/10 blur-2xl" />
       <div className="relative">
         <div className="flex items-center justify-between gap-2">
@@ -99,6 +99,14 @@ function SidebarEventCard({ cfg, event, gallery }) {
 export default function ClientLayout() {
   const { role, user, brand } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { pathname } = useLocation()
+  const mainRef = useRef(null)
+
+  // <main> is the scroll container (the shell is h-screen), so the window never
+  // scrolls — a route change would otherwise leave the new page mid-scroll.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 })
+  }, [pathname])
 
   if (role !== 'Client') {
     return <Navigate to="/" replace />
@@ -115,8 +123,8 @@ export default function ClientLayout() {
     : { '--primary': cfg.accent, '--ring': cfg.accent, '--sidebar-primary': cfg.accent, '--sidebar-ring': cfg.accent }
 
   return (
-    <div className="flex min-h-screen w-full bg-background" style={brandStyle}>
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
+    <div className="flex h-screen w-full overflow-hidden bg-background" style={brandStyle}>
+      <aside className="hidden w-72 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
         <SidebarBrand subtitle="Client Portal" />
         <SidebarEventCard cfg={cfg} event={event} gallery={gallery} />
         <SidebarNav items={clientNavItems} />
@@ -138,7 +146,7 @@ export default function ClientLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={() => setMobileOpen(true)} loginPath={loginPath} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
