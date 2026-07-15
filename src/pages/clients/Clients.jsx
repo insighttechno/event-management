@@ -18,6 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { getClients, setClients, subscribeClients } from '@/lib/clients-store'
+import { getActiveBrand, matchesBrand, subscribeActiveBrand } from '@/lib/brand-scope'
 import { clientStatuses } from '@/data/clients'
 import { packages, packageBrands } from '@/data/packages'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -36,7 +37,12 @@ const statusTone = (s) =>
 export default function Clients() {
   const navigate = useNavigate()
   const location = useLocation()
-  const clients = useSyncExternalStore(subscribeClients, getClients)
+  const allClients = useSyncExternalStore(subscribeClients, getClients)
+  const activeBrand = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
+  const clients = useMemo(
+    () => allClients.filter((c) => matchesBrand(c.brand, activeBrand)),
+    [allClients, activeBrand]
+  )
 
   // The detail page sends us here to edit — open straight into the form.
   const editIdFromNav = location.state?.editId
@@ -142,18 +148,20 @@ export default function Clients() {
       balance: Number(form.balance) || 0,
     }
     if (editing) {
-      setClients(clients.map((c) => (c.id === editing.id ? { ...c, ...payload } : c)))
+      // Always write against the FULL list — `clients` is scoped to the active
+      // brand, so saving through it would drop the other brand's records.
+      setClients(allClients.map((c) => (c.id === editing.id ? { ...c, ...payload } : c)))
       toast.success(`Client "${payload.name}" updated.`)
     } else {
-      const id = `CL-${String(clients.length + 1).padStart(2, '0')}`
-      setClients([{ ...payload, id }, ...clients])
+      const id = `CL-${String(allClients.length + 1).padStart(2, '0')}`
+      setClients([{ ...payload, id }, ...allClients])
       toast.success(`Client "${payload.name}" added.`)
     }
     setView('list')
   }
 
   const removeNow = () => {
-    setClients(clients.filter((c) => c.id !== deleteTarget.id))
+    setClients(allClients.filter((c) => c.id !== deleteTarget.id))
     toast.success(`Client "${deleteTarget.name}" removed.`)
   }
 

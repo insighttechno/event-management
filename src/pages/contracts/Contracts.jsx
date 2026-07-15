@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Plus, Send, Sparkles, Eye, PenLine, CheckCircle2, Clock, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -15,6 +15,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { contracts as initialContracts } from '@/data/finance'
+import {
+  brandOfPerson, getActiveBrand, matchesBrand, subscribeActiveBrand,
+} from '@/lib/brand-scope'
 import { clients } from '@/data/clients'
 import { formatDate } from '@/lib/utils'
 
@@ -60,9 +63,13 @@ ${client.name} (Client)               ${client.brand} (Planner)`
 const emptyForm = { clientId: '', template: TEMPLATES[0], body: '' }
 
 export default function Contracts() {
+  // Brand is NOT stored on a contract — it's derived from whoever the contract
+  // is for. Hardcoding 'Family Affair' here was mislabelling Senses At Play
+  // work (Emily Carter's photography agreement showed as Family Affair).
   const [contracts, setContracts] = useState(
-    initialContracts.map((c) => ({ ...c, brand: 'Family Affair' }))
+    initialContracts.map((c) => ({ ...c, brand: brandOfPerson(c.client) }))
   )
+  const activeBrand = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
   const [view, setView] = useState('list')
   const [form, setForm] = useState(emptyForm)
   const [detailId, setDetailId] = useState(null)
@@ -142,7 +149,12 @@ export default function Contracts() {
     toast.success(`${signTarget.client} signed — copy stored in both portals.`)
   }
 
-  const awaiting = contracts.filter((c) => c.status !== 'Signed').length
+  // `contracts` stays whole for writes/ID generation; only the list is scoped.
+  const brandContracts = useMemo(
+    () => contracts.filter((c) => matchesBrand(c.brand, activeBrand)),
+    [contracts, activeBrand]
+  )
+  const awaiting = brandContracts.filter((c) => c.status !== 'Signed').length
 
   // ============ NEW CONTRACT (in-page) ============
   if (view === 'new') {
@@ -296,9 +308,9 @@ export default function Contracts() {
 
       <DataTable
         title="All contracts"
-        description={`${contracts.length} on record · ${awaiting} awaiting signature`}
+        description={`${brandContracts.length} on record · ${awaiting} awaiting signature`}
         columns={columns}
-        rows={contracts}
+        rows={brandContracts}
         onRowClick={openDetail}
         searchKeys={['title', 'client', 'event', 'id']}
         searchPlaceholder="Search by contract, client, event…"

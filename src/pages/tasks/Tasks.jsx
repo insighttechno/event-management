@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Plus, Check, CircleAlert, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -15,6 +15,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { tasks as initialTasks, taskStatuses } from '@/data/tasks'
+import {
+  brandOfEventName, getActiveBrand, matchesBrand, subscribeActiveBrand,
+} from '@/lib/brand-scope'
 import { formatDate } from '@/lib/utils'
 
 const priorities = ['High', 'Medium', 'Low']
@@ -34,7 +37,16 @@ const isOverdue = (t) => t.status !== 'Done' && t.dueDate && t.dueDate < new Dat
 const emptyForm = { title: '', event: '', assignedTo: '', dueDate: '', priority: 'Medium', status: 'To Do' }
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState(initialTasks)
+  const [allTasks, setTasks] = useState(initialTasks)
+  const activeBrand = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
+
+  // A task has no brand of its own — it belongs to an event, which belongs to
+  // a client. Tasks whose event can't be resolved stay visible (see
+  // matchesBrand) so real work never silently disappears.
+  const tasks = useMemo(
+    () => allTasks.filter((t) => matchesBrand(brandOfEventName(t.event), activeBrand)),
+    [allTasks, activeBrand]
+  )
   const [view, setView] = useState('list')
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
@@ -104,7 +116,8 @@ export default function Tasks() {
       setTasks((prev) => prev.map((t) => (t.id === editing.id ? { ...t, ...form } : t)))
       toast.success('Task updated.')
     } else {
-      const id = `T-${500 + tasks.length + 10}`
+      // Off the FULL list — `tasks` is brand-scoped and would collide.
+      const id = `T-${500 + allTasks.length + 10}`
       setTasks((prev) => [{ ...form, id }, ...prev])
       toast.success('Task added.')
     }

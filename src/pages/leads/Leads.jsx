@@ -22,6 +22,7 @@ import {
 import { leadStages } from '@/data/leads'
 import { packageBrands } from '@/data/packages'
 import { followUpStatus, isNewLead } from '@/lib/lead-flow'
+import { getActiveBrand, matchesBrand, subscribeActiveBrand } from '@/lib/brand-scope'
 import {
   addLead, getLeads, removeLead, subscribeLeads, updateLead,
 } from '@/lib/leads-store'
@@ -36,6 +37,7 @@ export default function Leads() {
   const navigate = useNavigate()
   const location = useLocation()
   const leads = useSyncExternalStore(subscribeLeads, getLeads)
+  const activeBrand = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
 
   // The detail page sends us here to edit — open straight into the form rather
   // than making the user find the row again.
@@ -76,16 +78,21 @@ export default function Leads() {
   const startEdit = (lead) => { setEditing(lead); setForm({ ...lead, value: String(lead.value ?? '') }); setView('form') }
   const openDetail = (lead) => navigate(`/admin/leads/${lead.id}`)
 
+  const brandLeads = useMemo(
+    () => leads.filter((l) => matchesBrand(l.brand, activeBrand)),
+    [leads, activeBrand]
+  )
+
   const dueFollowUps = useMemo(
-    () => leads.filter((l) => ['overdue', 'today'].includes(followUpStatus(l)))
+    () => brandLeads.filter((l) => ['overdue', 'today'].includes(followUpStatus(l)))
       .sort((a, b) => a.nextFollowUp.localeCompare(b.nextFollowUp)),
-    [leads]
+    [brandLeads]
   )
 
   // Newest leads always on top of the list.
   const displayLeads = useMemo(
-    () => [...leads].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    [leads]
+    () => [...brandLeads].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    [brandLeads]
   )
 
 
@@ -336,7 +343,7 @@ export default function Leads() {
         <TabsContent value="board" className="mt-4">
           <div className="flex gap-3 overflow-x-auto pb-3">
             {leadStages.map((stage) => {
-              const stageLeads = leads.filter((l) => l.stage === stage)
+              const stageLeads = brandLeads.filter((l) => l.stage === stage)
               return (
                 <div key={stage}
                   className={cn('flex w-64 shrink-0 flex-col gap-2 rounded-xl border border-border bg-muted/40 p-2 transition-colors',

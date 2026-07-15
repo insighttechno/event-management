@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Plus, Check, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -16,10 +16,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { events as initialEvents, eventStatuses } from '@/data/events'
+import {
+  brandOfEvent, getActiveBrand, matchesBrand, subscribeActiveBrand,
+} from '@/lib/brand-scope'
 import { packageBrands } from '@/data/packages'
 import { formatDate } from '@/lib/utils'
 
-const eventBrand = (e) => e.brand || (e.type === 'Photography' ? 'Senses At Play' : 'Family Affair')
+// Brand comes from the event's client, not from guessing at the event type —
+// a Family Affair client can book a photography session too.
+const eventBrand = (e) => brandOfEvent(e) ?? 'Family Affair'
 
 const statusTone = (s) =>
   s === 'Completed' ? 'bg-emerald-500/15 text-emerald-700'
@@ -34,6 +39,7 @@ const emptyForm = {
 
 export default function Events() {
   const [events, setEvents] = useState(initialEvents)
+  const activeBrand = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
   const [view, setView] = useState('list')
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
@@ -108,7 +114,12 @@ export default function Events() {
     toast.success(`Event "${deleteTarget.name}" deleted.`)
   }
 
-  const upcoming = events.filter((e) => e.status !== 'Completed' && e.status !== 'Cancelled').length
+  // `events` stays whole for writes; only the list is scoped to the brand.
+  const brandEvents = useMemo(
+    () => events.filter((e) => matchesBrand(brandOfEvent(e), activeBrand)),
+    [events, activeBrand]
+  )
+  const upcoming = brandEvents.filter((e) => e.status !== 'Completed' && e.status !== 'Cancelled').length
 
   if (view === 'form') {
     return (
@@ -186,9 +197,9 @@ export default function Events() {
 
       <DataTable
         title="All events"
-        description={`${events.length} events · ${upcoming} upcoming`}
+        description={`${brandEvents.length} events · ${upcoming} upcoming`}
         columns={columns}
-        rows={events}
+        rows={brandEvents}
         onRowClick={startEdit}
         searchKeys={['name', 'client', 'venue', 'planner', 'type']}
         searchPlaceholder="Search by event, client, venue…"

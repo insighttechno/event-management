@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Plus, Check, FileText, Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -16,6 +16,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { documents as initialDocuments, documentFolders } from '@/data/documents'
+import {
+  brandOfPerson, getActiveBrand, matchesBrand, subscribeActiveBrand,
+} from '@/lib/brand-scope'
 import { formatDate } from '@/lib/utils'
 
 const emptyForm = {
@@ -23,7 +26,14 @@ const emptyForm = {
 }
 
 export default function Documents() {
-  const [documents, setDocuments] = useState(initialDocuments)
+  const [allDocuments, setDocuments] = useState(initialDocuments)
+  const activeBrand = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
+
+  // A document has no brand — it belongs to a client (who may still be a lead).
+  const documents = useMemo(
+    () => allDocuments.filter((d) => matchesBrand(brandOfPerson(d.client), activeBrand)),
+    [allDocuments, activeBrand]
+  )
   const [view, setView] = useState('list')
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
@@ -91,7 +101,8 @@ export default function Documents() {
       setDocuments((prev) => prev.map((d) => (d.id === editing.id ? { ...d, ...form } : d)))
       toast.success('Document updated.')
     } else {
-      setDocuments((prev) => [{ ...form, id: `D-${500 + documents.length + 10}`, uploadedAt: new Date().toISOString().slice(0, 10) }, ...prev])
+      // Off the FULL list — `documents` is brand-scoped and would collide.
+      setDocuments((prev) => [{ ...form, id: `D-${500 + allDocuments.length + 10}`, uploadedAt: new Date().toISOString().slice(0, 10) }, ...prev])
       toast.success('Document uploaded.')
     }
     setView('list')

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import {
   Plus, Receipt, DollarSign, Send, BellRing, Check, Eye,
   FileText, ShieldCheck, CreditCard, Wallet, CheckCircle2,
@@ -24,6 +24,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { invoices as initialInvoices, monthlyRevenue, paymentMethods } from '@/data/finance'
+import { ALL_BRANDS, getActiveBrand, matchesBrand, subscribeActiveBrand } from '@/lib/brand-scope'
 import { packageBrands } from '@/data/packages'
 import { formatCurrency, formatDate, nextSequentialId } from '@/lib/utils'
 
@@ -44,6 +45,7 @@ const emptyForm = {
 
 export default function Payments() {
   const [invoices, setInvoices] = useState(initialInvoices)
+  const activeBrand = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
   const [view, setView] = useState('list')
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
@@ -56,9 +58,16 @@ export default function Payments() {
   const detail = invoices.find((i) => i.id === detailId) ?? null
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
 
-  const totalInvoiced = invoices.reduce((s, i) => s + i.amount, 0)
-  const totalCollected = invoices.reduce((s, i) => s + i.paid, 0)
-  const dueInvoices = useMemo(() => invoices.filter(isOverdue).sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [invoices])
+  // `invoices` stays the full list so writes and ID generation are unaffected;
+  // only what's shown is scoped to the sidebar's brand.
+  const brandInvoices = useMemo(
+    () => invoices.filter((i) => matchesBrand(i.brand, activeBrand)),
+    [invoices, activeBrand]
+  )
+
+  const totalInvoiced = brandInvoices.reduce((s, i) => s + i.amount, 0)
+  const totalCollected = brandInvoices.reduce((s, i) => s + i.paid, 0)
+  const dueInvoices = useMemo(() => brandInvoices.filter(isOverdue).sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [brandInvoices])
 
   const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
   const startEdit = (inv) => { setEditing(inv); setForm({ ...inv }); setView('form') }
@@ -310,7 +319,7 @@ export default function Payments() {
         action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />New invoice</Button>} />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total invoiced" value={formatCurrency(totalInvoiced)} icon={Receipt} hint="Across both brands" accent="primary" />
+        <StatCard label="Total invoiced" value={formatCurrency(totalInvoiced)} icon={Receipt} hint={activeBrand === ALL_BRANDS ? 'Across both brands' : activeBrand} accent="primary" />
         <StatCard label="Collected" value={formatCurrency(totalCollected)} icon={DollarSign} hint={`${formatCurrency(totalInvoiced - totalCollected)} outstanding`} accent="secondary" trend="+18%" trendUp />
         <StatCard label="Overdue" value={dueInvoices.length} icon={BellRing} hint="Need a reminder" accent="accent" />
       </div>
@@ -337,9 +346,9 @@ export default function Payments() {
 
       <DataTable
         title="Invoices"
-        description={`${invoices.length} invoices across both brands`}
+        description={`${brandInvoices.length} invoice${brandInvoices.length === 1 ? '' : 's'}${activeBrand === ALL_BRANDS ? ' across both brands' : ` · ${activeBrand}`}`}
         columns={columns}
-        rows={invoices}
+        rows={brandInvoices}
         onRowClick={openDetail}
         searchKeys={['id', 'client', 'event']}
         searchPlaceholder="Search by invoice, client, event…"

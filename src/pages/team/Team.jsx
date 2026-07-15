@@ -218,7 +218,9 @@ export default function Team() {
 
       <DataTable
         title="Team members"
-        description={`${members.length} members · ${activeCount} active`}
+        // Deliberately NOT brand-scoped: brandAccess is a permission, not
+        // ownership — a member with All Brands belongs to neither list.
+        description={`${members.length} members · ${activeCount} active · shared across both brands`}
         columns={columns}
         rows={members}
         onRowClick={startEdit}

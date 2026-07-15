@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Lock, LogOut, ChevronDown, Check, Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,15 +15,18 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/hooks/use-auth'
 import { getTeamMembers, subscribeTeam } from '@/lib/team-store'
+import { ALL_BRANDS, getActiveBrand, setActiveBrand, subscribeActiveBrand } from '@/lib/brand-scope'
 import { getBrandConfig } from '@/data/brand-config'
 
 const FA_LOGO = '/images/brand/family-affair.png'
 const SAP_LOGO = '/images/brand/senses-at-play.png'
 
+// `id` doubles as the brand value stored on records, so the switcher's choice
+// can be compared straight against client.brand with no mapping table.
 const BRANDS = [
-  { id: 'all', name: 'All Brands', sub: 'Both businesses' },
-  { id: 'fa', name: 'Family Affair', sub: 'Weddings & events', logo: FA_LOGO },
-  { id: 'sap', name: 'Senses At Play', sub: 'Photography', logo: SAP_LOGO },
+  { id: ALL_BRANDS, name: 'All Brands', sub: 'Both businesses' },
+  { id: 'Family Affair', name: 'Family Affair', sub: 'Weddings & events', logo: FA_LOGO },
+  { id: 'Senses At Play', name: 'Senses At Play', sub: 'Photography', logo: SAP_LOGO },
 ]
 
 function BrandMark({ brand, small }) {
@@ -47,7 +50,10 @@ function BrandMark({ brand, small }) {
 // Brand switcher — the admin manages BOTH brands from one place, so the panel
 // never reads as "built for one brand".
 export function SidebarBrand({ subtitle }) {
-  const [active, setActive] = useState(BRANDS[0])
+  // App-wide, not local state — picking a brand here has to actually scope
+  // every admin page's data.
+  const activeId = useSyncExternalStore(subscribeActiveBrand, getActiveBrand)
+  const active = BRANDS.find((b) => b.id === activeId) ?? BRANDS[0]
   const navigate = useNavigate()
   const { brand } = useAuth()
 
@@ -87,7 +93,7 @@ export function SidebarBrand({ subtitle }) {
           <DropdownMenuLabel>Switch brand</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {BRANDS.map((brand) => (
-            <DropdownMenuItem key={brand.id} className="gap-2.5" onClick={() => setActive(brand)}>
+            <DropdownMenuItem key={brand.id} className="gap-2.5" onClick={() => setActiveBrand(brand.id)}>
               <BrandMark brand={brand} small />
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="truncate text-sm font-medium">{brand.name}</p>

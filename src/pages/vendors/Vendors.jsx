@@ -153,7 +153,8 @@ export default function Vendors() {
 
       <DataTable
         title="All vendors"
-        description={`${vendors.length} vendors on record`}
+        // Deliberately NOT brand-scoped: the same florist works both brands.
+        description={`${vendors.length} vendors on record · shared across both brands`}
         columns={columns}
         rows={vendors}
         onRowClick={startEdit}
