@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import { Archive, Download, Eraser, FileText, PenLine } from 'lucide-react'
+import { Archive, Download, Eraser, FileText, PenLine, FileSignature, FileCheck2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
+import { StatStrip } from '@/components/common/StatStrip'
 import {
   Card,
   CardContent,
@@ -23,7 +24,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { events } from '@/data/events'
+import { useAuth } from '@/hooks/use-auth'
+import { resolveClient } from '@/lib/client-scope'
 import { contracts } from '@/data/finance'
 import { formatDate } from '@/lib/utils'
 
@@ -32,31 +34,40 @@ const statusVariant = {
   'Awaiting Signature': 'destructive',
 }
 
-const contractBody = (contract, event) => `
+const contractBody = (contract, event, cfg) => {
+  const isPhoto = cfg.kind === 'gallery'
+  const role = isPhoto ? 'Photographer' : 'Planner'
+  const subject = isPhoto ? 'the photography session' : 'the event'
+  const dateWord = isPhoto ? 'session date' : 'event date'
+  return `
 AGREEMENT — ${contract.title.toUpperCase()}
 
-This agreement is made between Family Affair Key West ("the Planner") and ${contract.client} ("the Client") for the event "${event.name}" to be held on ${formatDate(event.date)} at ${event.venue}.
+This agreement is made between ${cfg.name} ("the ${role}") and ${contract.client} ("the Client") for ${subject} "${event.name}" to be held on ${formatDate(event.date)} at ${event.venue}.
 
 1. SERVICES
-The Planner agrees to provide full event planning and coordination services, including vendor management, timeline coordination, and day-of execution.
+The ${role} agrees to provide ${isPhoto
+    ? 'photography coverage, professional editing, and online gallery delivery as described in the selected package.'
+    : 'full event planning and coordination services, including vendor management, timeline coordination, and day-of execution.'}
 
 2. PAYMENT TERMS
-The total contract value is payable per the invoice schedule shared in the client portal. A deposit secures the event date; the balance is due before the event day.
+The total contract value is payable per the invoice schedule shared in the client portal. A deposit secures the ${dateWord}; the balance is due per your package schedule.
 
 3. CANCELLATION
-Cancellations made more than 90 days before the event date receive a refund of all payments except the non-refundable deposit.
+Cancellations made more than 90 days before the ${dateWord} receive a refund of all payments except the non-refundable deposit.
 
 4. LIABILITY
-The Planner carries professional liability insurance. The Planner is not responsible for vendor non-performance outside its control, weather events, or force majeure.
+The ${role} carries professional liability insurance and is not responsible for circumstances outside its reasonable control, including weather events or force majeure.
 
 5. SIGNATURES
 By signing below, both parties agree to the terms outlined in this agreement.
 `
+}
 
 export default function ClientContracts() {
-  const event = events[0]
+  const { user, brand } = useAuth()
+  const { cfg, event } = resolveClient(brand, user?.name)
   const [myContracts, setMyContracts] = useState(
-    contracts.filter((c) => c.event === event.name)
+    contracts.filter((c) => c.client === event.client)
   )
   const [viewTarget, setViewTarget] = useState(null)
   const [signTarget, setSignTarget] = useState(null)
@@ -85,15 +96,24 @@ export default function ClientContracts() {
         description="Review and sign documents related to your event."
       />
 
+      <StatStrip items={[
+        { label: 'Total contracts', value: myContracts.length, icon: FileText, accent: 'navy' },
+        { label: 'Signed', value: signedContracts.length, icon: FileCheck2, accent: 'secondary' },
+        { label: 'Awaiting you', value: activeContracts.length, icon: FileSignature, accent: 'accent' },
+      ]} />
+
       {activeContracts.length > 0 && (
         <div className="space-y-4">
           {activeContracts.map((contract) => (
             <Card key={contract.id}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base">{contract.title}</CardTitle>
-                    <CardDescription>Sent {formatDate(contract.sentDate)}</CardDescription>
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileSignature className="size-5" /></span>
+                    <div>
+                      <CardTitle className="text-base">{contract.title}</CardTitle>
+                      <CardDescription>Sent {formatDate(contract.sentDate)}</CardDescription>
+                    </div>
                   </div>
                   <Badge variant={statusVariant[contract.status] ?? 'outline'}>
                     {contract.status}
@@ -175,7 +195,7 @@ export default function ClientContracts() {
               </DialogHeader>
               <ScrollArea className="h-80 rounded-lg border border-border bg-muted/30 p-4">
                 <pre className="font-sans text-sm whitespace-pre-wrap">
-                  {contractBody(viewTarget, event)}
+                  {contractBody(viewTarget, event, cfg)}
                 </pre>
               </ScrollArea>
               <DialogFooter>

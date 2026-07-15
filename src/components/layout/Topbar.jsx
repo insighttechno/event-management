@@ -14,12 +14,22 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ProfileDialog } from '@/components/common/ProfileDialog'
 import { useAuth } from '@/hooks/use-auth'
-import { notifications as initialNotifications } from '@/data/notifications'
+import { resolveClient } from '@/lib/client-scope'
+import {
+  adminNotifications, getClientNotifications, notificationTypes, defaultNotificationType,
+} from '@/data/notifications'
 
 export function Topbar({ onMenuClick, loginPath = '/admin/login' }) {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
-  const [notifications, setNotifications] = useState(initialNotifications)
+  const { user, role, brand, logout } = useAuth()
+  // Admins see business-wide notifications; clients see their own brand-aware set.
+  const [notifications, setNotifications] = useState(() => {
+    if (role === 'Client') {
+      const { cfg, event } = resolveClient(brand, user?.name)
+      return getClientNotifications(cfg, event)
+    }
+    return adminNotifications
+  })
   const [profileOpen, setProfileOpen] = useState(false)
 
   const unreadCount = notifications.filter((n) => !n.read).length
@@ -75,33 +85,39 @@ export function Topbar({ onMenuClick, loginPath = '/admin/login' }) {
               No notifications
             </p>
           ) : (
-            notifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className="flex items-start gap-2 py-2.5"
-                onSelect={(event) => {
-                  event.preventDefault()
-                  markAsRead(notification.id)
-                }}
-              >
-                <span
-                  className={`mt-1.5 size-2 shrink-0 rounded-full ${
-                    notification.read ? 'bg-transparent' : 'bg-primary'
-                  }`}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">
-                    {notification.title}
+            notifications.map((notification) => {
+              const meta = notificationTypes[notification.type] ?? defaultNotificationType
+              return (
+                <DropdownMenuItem
+                  key={notification.id}
+                  className="flex items-start gap-2 py-2.5 focus:bg-[#FEFBF7] focus:text-neutral-800"
+                  onSelect={(event) => {
+                    event.preventDefault()
+                    markAsRead(notification.id)
+                  }}
+                >
+                  <span
+                    className={`mt-2 size-2 shrink-0 rounded-full ${
+                      notification.read ? 'bg-transparent' : 'bg-primary'
+                    }`}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="mb-1 flex items-center gap-1.5">
+                      <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.className}`}>
+                        {meta.label}
+                      </span>
+                      <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{notification.time}</span>
+                    </span>
+                    <span className="block text-sm font-medium">
+                      {notification.title}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {notification.description}
+                    </span>
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {notification.description}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {notification.time}
-                  </span>
-                </span>
-              </DropdownMenuItem>
-            ))
+                </DropdownMenuItem>
+              )
+            })
           )}
         </DropdownMenuContent>
       </DropdownMenu>

@@ -1,185 +1,189 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, Check, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
-import { EntityFormDialog } from '@/components/common/EntityFormDialog'
+import { BackHeader } from '@/components/common/BackHeader'
+import { BrandBadge } from '@/components/common/BrandBadge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { RowActions } from '@/components/common/RowActions'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 import { events as initialEvents, eventStatuses } from '@/data/events'
-import { formatCurrency, formatDate, nextSequentialId } from '@/lib/utils'
+import { packageBrands } from '@/data/packages'
+import { formatDate } from '@/lib/utils'
 
-const eventFields = [
-  { name: 'name', label: 'Event name', span: 'full', required: true },
-  { name: 'client', label: 'Client', span: 'full' },
-  { name: 'type', label: 'Event type' },
-  { name: 'date', label: 'Date', type: 'date', required: true },
-  { name: 'venue', label: 'Venue', span: 'full' },
-  { name: 'status', label: 'Status', type: 'select', options: eventStatuses },
-  { name: 'guestCount', label: 'Guest count', type: 'number', min: 0 },
-  { name: 'budget', label: 'Budget', type: 'number', min: 0 },
-  { name: 'planner', label: 'Planner' },
-]
+const eventBrand = (e) => e.brand || (e.type === 'Photography' ? 'Senses At Play' : 'Family Affair')
 
-const emptyEvent = {
-  name: '',
-  client: '',
-  type: '',
-  date: '',
-  venue: '',
-  status: 'Planning',
-  guestCount: '',
-  budget: '',
-  planner: '',
+const statusTone = (s) =>
+  s === 'Completed' ? 'bg-emerald-500/15 text-emerald-700'
+    : s === 'Confirmed' ? 'bg-primary/15 text-primary'
+    : s === 'Cancelled' ? 'bg-destructive/15 text-destructive'
+    : 'bg-amber-500/15 text-amber-700'
+
+const emptyForm = {
+  name: '', client: '', brand: 'Family Affair', type: 'Wedding', date: '', venue: '',
+  guestCount: '', budget: '', status: 'Planning', planner: '',
 }
 
 export default function Events() {
   const [events, setEvents] = useState(initialEvents)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingEvent, setEditingEvent] = useState(null)
+  const [view, setView] = useState('list')
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [confirmSave, setConfirmSave] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const openAddDialog = () => {
-    setEditingEvent(null)
-    setFormOpen(true)
-  }
+  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
+  const startEdit = (e) => { setEditing(e); setForm({ ...e, brand: eventBrand(e) }); setView('form') }
 
-  const openEditDialog = (event) => {
-    setEditingEvent(event)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = (values) => {
-    const payload = {
-      ...values,
-      guestCount: Number(values.guestCount) || 0,
-      budget: Number(values.budget) || 0,
-    }
-
-    if (editingEvent) {
-      setEvents((prev) =>
-        prev.map((event) => (event.id === editingEvent.id ? { ...event, ...payload } : event))
-      )
+  const saveNow = () => {
+    const payload = { ...form, guestCount: Number(form.guestCount) || 0, budget: Number(form.budget) || 0 }
+    if (editing) {
+      setEvents((prev) => prev.map((e) => (e.id === editing.id ? { ...e, ...payload } : e)))
       toast.success(`Event "${payload.name}" updated.`)
     } else {
-      const newEvent = {
-        ...payload,
-        id: nextSequentialId(events, 'E'),
-        milestones: [],
-      }
-      setEvents((prev) => [newEvent, ...prev])
-      toast.success(`Event "${payload.name}" added.`)
+      setEvents((prev) => [{ ...payload, id: `E-${2000 + events.length + 10}`, milestones: [] }, ...prev])
+      toast.success(`Event "${payload.name}" created.`)
     }
+    setView('list')
   }
 
-  const handleDelete = () => {
-    setEvents((prev) => prev.filter((event) => event.id !== deleteTarget.id))
+  const removeNow = () => {
+    setEvents((prev) => prev.filter((e) => e.id !== deleteTarget.id))
     toast.success(`Event "${deleteTarget.name}" deleted.`)
+  }
+
+  const upcoming = events.filter((e) => e.status !== 'Completed' && e.status !== 'Cancelled').length
+
+  if (view === 'form') {
+    return (
+      <div className="max-w-5xl">
+        <BackHeader title={editing ? 'Edit event' : 'New event'} backLabel="Back to events"
+          onBack={() => setView('list')} description="Track the event, venue, guest count and status." />
+        <Card>
+          <CardContent className="grid gap-5 p-6 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Event name</Label>
+              <Input value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="Whitfield Wedding" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Client</Label>
+              <Input value={form.client} onChange={(e) => setField('client', e.target.value)} placeholder="Sarah & James Whitfield" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Brand</Label>
+              <Select value={form.brand} onValueChange={(v) => setField('brand', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{packageBrands.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Input value={form.type} onChange={(e) => setField('type', e.target.value)} placeholder="Wedding / Vow Renewal / Photography" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <Input type="date" value={form.date} onChange={(e) => setField('date', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Venue</Label>
+              <Input value={form.venue} onChange={(e) => setField('venue', e.target.value)} placeholder="Smathers Beach, Key West" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Guest count</Label>
+              <Input type="number" min={0} value={form.guestCount} onChange={(e) => setField('guestCount', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Budget (USD)</Label>
+              <Input type="number" min={0} value={form.budget} onChange={(e) => setField('budget', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Planner</Label>
+              <Input value={form.planner} onChange={(e) => setField('planner', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setField('status', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{eventStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 sm:col-span-2">
+              <Button variant="outline" onClick={() => setView('list')}>Cancel</Button>
+              <Button className="gap-1.5" disabled={!form.name.trim()} onClick={() => setConfirmSave(true)}>
+                <Check className="size-4" />{editing ? 'Save changes' : 'Create event'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <ConfirmDialog open={confirmSave} onOpenChange={setConfirmSave}
+          title={editing ? 'Save changes?' : 'Create this event?'}
+          description={`"${form.name || 'New event'}" will be ${editing ? 'updated' : 'created'}.`}
+          confirmLabel={editing ? 'Save' : 'Create'} confirmVariant="default" onConfirm={saveNow} />
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Wedding & Event Management"
-        description="All upcoming and past events for Family Affair Key West & Senses At Play."
-        action={
-          <Button onClick={openAddDialog} className="gap-1.5">
-            <Plus className="size-4" />
-            Add Event
-          </Button>
-        }
-      />
+      <PageHeader title="Events" description="Every wedding, shoot and celebration across both brands."
+        action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />New event</Button>} />
 
       <Card>
         <CardHeader>
-          <CardTitle>All Events</CardTitle>
-          <CardDescription>{events.length} events on record</CardDescription>
+          <CardTitle>All events</CardTitle>
+          <CardDescription>{events.length} events · {upcoming} upcoming</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {events.map((event) => (
-            <div
-              key={event.id}
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-muted/40"
-            >
-              <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 leading-none text-primary">
-                {event.date ? (
-                  <>
-                    <span className="text-sm font-bold">
-                      {new Date(event.date).getDate()}
-                    </span>
-                    <span className="text-[10px] font-medium uppercase">
-                      {new Date(event.date).toLocaleString('en-US', { month: 'short' })}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-[10px] font-medium uppercase">TBD</span>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <Link
-                  to={`/admin/events/${event.id}`}
-                  className="font-medium leading-tight hover:underline"
-                >
-                  {event.name}
-                </Link>
-                <p className="truncate text-xs text-muted-foreground">
-                  {event.date ? formatDate(event.date) : 'Date TBD'} · {event.venue} ·{' '}
-                  {event.guestCount} guests
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="hidden text-sm font-medium sm:inline">
-                  {formatCurrency(event.budget)}
-                </span>
-                <Badge variant="outline">{event.status}</Badge>
-                <Button asChild variant="outline" size="sm">
-                  <Link to={`/admin/events/${event.id}`}>View</Link>
-                </Button>
-                <RowActions
-                  onEdit={() => openEditDialog(event)}
-                  onDelete={() => setDeleteTarget(event)}
-                />
-              </div>
-            </div>
-          ))}
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Event</TableHead>
+                <TableHead>Client</TableHead>
+                <TableHead>Brand</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Venue</TableHead>
+                <TableHead>Guests</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-28 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {events.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell className="font-medium">{e.name}</TableCell>
+                  <TableCell className="text-sm">{e.client}</TableCell>
+                  <TableCell><BrandBadge brand={eventBrand(e)} /></TableCell>
+                  <TableCell className="text-sm">{e.date ? formatDate(e.date) : '—'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{e.venue}</TableCell>
+                  <TableCell className="text-sm">{e.guestCount || '—'}</TableCell>
+                  <TableCell><Badge className={statusTone(e.status)} variant="secondary">{e.status}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => startEdit(e)}><Eye className="size-3.5" />Open</Button>
+                      <RowActions onEdit={() => startEdit(e)} onDelete={() => setDeleteTarget(e)} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      <EntityFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        title={editingEvent ? 'Edit Event' : 'Add Event'}
-        description={
-          editingEvent
-            ? 'Update this event and save your changes.'
-            : 'Add a new event to the calendar.'
-        }
-        fields={eventFields}
-        defaultValues={editingEvent ?? emptyEvent}
-        onSubmit={handleSubmit}
-        submitLabel={editingEvent ? 'Save changes' : 'Add event'}
-      />
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete this event?"
-        description={
-          deleteTarget
-            ? `"${deleteTarget.name}" will be permanently removed. This cannot be undone.`
-            : ''
-        }
-        onConfirm={handleDelete}
-      />
+      <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this event?" description={deleteTarget ? `"${deleteTarget.name}" will be removed.` : ''}
+        confirmLabel="Delete" onConfirm={removeNow} />
     </div>
   )
 }

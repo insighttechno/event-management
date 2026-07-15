@@ -1,393 +1,182 @@
 import { useRef, useState } from 'react'
-import { Film, Image as ImageIcon, Link2, Plus, Upload, X } from 'lucide-react'
+import { Plus, Check, Image as ImageIcon, Film, ExternalLink, Upload } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/common/PageHeader'
-import { EntityFormDialog } from '@/components/common/EntityFormDialog'
+import { BackHeader } from '@/components/common/BackHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { RowActions } from '@/components/common/RowActions'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import { galleries as initialGalleries } from '@/data/finance'
-import { formatFileSize, nextSequentialId } from '@/lib/utils'
-
-const statusVariant = {
-  Delivered: 'secondary',
-  Editing: 'outline',
-  'In Progress': 'outline',
-}
+import { cn, formatDate } from '@/lib/utils'
 
 const galleryStatuses = ['In Progress', 'Editing', 'Delivered']
 
-const galleryFields = [
-  { name: 'title', label: 'Project title', span: 'full', required: true },
-  { name: 'client', label: 'Client', span: 'full' },
-  { name: 'photographer', label: 'Photographer' },
-  { name: 'photoCount', label: 'Photo count', type: 'number', min: 0 },
-  { name: 'videoCount', label: 'Video count', type: 'number', min: 0 },
-  { name: 'status', label: 'Status', type: 'select', options: galleryStatuses },
-  { name: 'deliveredDate', label: 'Delivered date', type: 'date' },
+// Cover images used as a fallback for galleries created without an explicit cover.
+const GALLERY_COVERS = [
+  '/images/gallery/g1.jpg', '/images/gallery/g2.jpg', '/images/gallery/g3.jpg',
+  '/images/gallery/g4.jpg', '/images/gallery/g5.jpg', '/images/gallery/g6.jpg',
 ]
 
-const emptyGallery = {
-  title: '',
-  client: '',
-  photographer: '',
-  photoCount: '',
-  videoCount: '',
-  status: 'In Progress',
-  deliveredDate: '',
-}
+const statusTone = (s) =>
+  s === 'Delivered' ? 'bg-emerald-500/15 text-emerald-700'
+    : s === 'Editing' ? 'bg-primary/15 text-primary'
+    : 'bg-amber-500/15 text-amber-700'
 
-function mediaLabel(gallery) {
-  const photos = gallery.photoCount ?? 0
-  const videos = gallery.videoCount ?? 0
-  if (!photos && !videos) return 'No media yet'
-  const parts = []
-  if (photos) parts.push(`${photos} photo${photos !== 1 ? 's' : ''}`)
-  if (videos) parts.push(`${videos} video${videos !== 1 ? 's' : ''}`)
-  return parts.join(' · ')
-}
+const emptyForm = { title: '', client: '', photographer: '', status: 'In Progress', photoCount: 0, videoCount: 0 }
 
 export default function Gallery() {
   const [galleries, setGalleries] = useState(initialGalleries)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingGallery, setEditingGallery] = useState(null)
+  const [view, setView] = useState('list')
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [confirmSave, setConfirmSave] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [uploadTarget, setUploadTarget] = useState(null)
 
-  const handleUpload = (files) => {
-    const videos = files.filter((file) => file.type.startsWith('video')).length
-    const photos = files.length - videos
-    setGalleries((prev) =>
-      prev.map((gallery) =>
-        gallery.id === uploadTarget.id
-          ? {
-              ...gallery,
-              photoCount: (gallery.photoCount ?? 0) + photos,
-              videoCount: (gallery.videoCount ?? 0) + videos,
-            }
-          : gallery
-      )
-    )
-    const parts = []
-    if (photos) parts.push(`${photos} photo${photos !== 1 ? 's' : ''}`)
-    if (videos) parts.push(`${videos} video${videos !== 1 ? 's' : ''}`)
-    toast.success(`${parts.join(' & ')} uploaded to "${uploadTarget.title}".`)
+  const fileRef = useRef(null)
+  const onFilesChange = (e) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const photos = files.filter((f) => f.type.startsWith('image/')).length
+    const videos = files.filter((f) => f.type.startsWith('video/')).length
+    setForm((p) => ({
+      ...p,
+      photoCount: (Number(p.photoCount) || 0) + photos,
+      videoCount: (Number(p.videoCount) || 0) + videos,
+    }))
+    toast.success(`Added ${photos} photo${photos !== 1 ? 's' : ''} and ${videos} video${videos !== 1 ? 's' : ''}.`)
   }
 
-  const copyClientLink = async (gallery) => {
-    const link = `https://gallery.familyaffairkeywest.com/${gallery.id.toLowerCase()}`
-    try {
-      await navigator.clipboard.writeText(link)
-      toast.success(`Client access link copied for "${gallery.title}".`, { description: link })
-    } catch {
-      toast.info(link, { description: 'Copy this client access link manually.' })
-    }
-  }
+  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
+  const startEdit = (g) => { setEditing(g); setForm({ ...g }); setView('form') }
 
-  const openAddDialog = () => {
-    setEditingGallery(null)
-    setFormOpen(true)
-  }
-
-  const openEditDialog = (gallery) => {
-    setEditingGallery(gallery)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = (values) => {
-    const payload = {
-      ...values,
-      photoCount: Number(values.photoCount) || 0,
-      deliveredDate: values.deliveredDate || null,
-    }
-
-    payload.videoCount = Number(values.videoCount) || 0
-
-    if (editingGallery) {
-      setGalleries((prev) =>
-        prev.map((gallery) =>
-          gallery.id === editingGallery.id ? { ...gallery, ...payload } : gallery
-        )
-      )
-      toast.success(`"${payload.title}" updated.`)
+  const saveNow = () => {
+    const payload = { ...form, photoCount: Number(form.photoCount) || 0, videoCount: Number(form.videoCount) || 0 }
+    if (editing) {
+      setGalleries((prev) => prev.map((g) => (g.id === editing.id ? { ...g, ...payload } : g)))
+      toast.success('Gallery updated.')
     } else {
-      const newGallery = {
-        ...payload,
-        id: nextSequentialId(galleries, 'G'),
-      }
-      setGalleries((prev) => [newGallery, ...prev])
-      toast.success(`"${payload.title}" added.`)
+      setGalleries((prev) => [{ ...payload, id: `G-${700 + galleries.length + 10}`, deliveredDate: null }, ...prev])
+      toast.success('Gallery created.')
     }
+    setView('list')
   }
 
-  const handleDelete = () => {
-    setGalleries((prev) => prev.filter((gallery) => gallery.id !== deleteTarget.id))
-    toast.success(`"${deleteTarget.title}" deleted.`)
+  const removeNow = () => {
+    setGalleries((prev) => prev.filter((g) => g.id !== deleteTarget.id))
+    toast.success('Gallery deleted.')
+  }
+
+  if (view === 'form') {
+    return (
+      <div className="max-w-4xl">
+        <BackHeader title={editing ? 'Edit gallery' : 'New gallery'} backLabel="Back to galleries"
+          onBack={() => setView('list')} description="Deliver photos & videos to clients (Pixieset integration in Phase 1)." />
+        <Card>
+          <CardContent className="grid gap-5 p-6 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Gallery title</Label>
+              <Input value={form.title} onChange={(e) => setField('title', e.target.value)} placeholder="Whitfield Engagement Session" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Client</Label>
+              <Input value={form.client} onChange={(e) => setField('client', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Photographer</Label>
+              <Input value={form.photographer} onChange={(e) => setField('photographer', e.target.value)} placeholder="John McCall" />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Upload photos &amp; videos</Label>
+              <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={onFilesChange} />
+              <button type="button" onClick={() => fileRef.current?.click()}
+                className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/30">
+                <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary"><Upload className="size-6" /></div>
+                <p className="text-sm font-medium">Click to upload photos &amp; videos</p>
+                <p className="text-xs text-muted-foreground">
+                  {(Number(form.photoCount) || 0)} photos · {(Number(form.videoCount) || 0)} videos in this gallery
+                </p>
+              </button>
+              <p className="text-xs text-muted-foreground">
+                Or connect <span className="font-medium text-foreground">Pixieset</span> in Settings to sync galleries automatically via API — no manual upload needed.
+              </p>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setField('status', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{galleryStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 sm:col-span-2">
+              <Button variant="outline" onClick={() => setView('list')}>Cancel</Button>
+              <Button className="gap-1.5" disabled={!form.title.trim()} onClick={() => setConfirmSave(true)}>
+                <Check className="size-4" />{editing ? 'Save changes' : 'Create gallery'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <ConfirmDialog open={confirmSave} onOpenChange={setConfirmSave}
+          title={editing ? 'Save changes?' : 'Create this gallery?'}
+          description={`"${form.title || 'New gallery'}" will be ${editing ? 'updated' : 'created'}.`}
+          confirmLabel={editing ? 'Save' : 'Create'} confirmVariant="default" onConfirm={saveNow} />
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Photography & Gallery Management"
-        description="Track gallery projects and delivery status for Senses At Play shoots."
-        action={
-          <Button onClick={openAddDialog} className="gap-1.5">
-            <Plus className="size-4" />
-            Add Project
-          </Button>
-        }
-      />
+      <PageHeader title="Gallery" description="Deliver photos and videos to clients — the core deliverable for Senses At Play."
+        action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />New gallery</Button>} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Gallery Projects</CardTitle>
-          <CardDescription>{galleries.length} active or recent projects</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {galleries.map((gallery) => (
-            <div
-              key={gallery.id}
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-muted/40"
-            >
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent/20 text-accent-foreground">
-                <ImageIcon className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium leading-tight">{gallery.title}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {gallery.client} · {gallery.photographer} · {mediaLabel(gallery)}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Badge variant={statusVariant[gallery.status] ?? 'outline'}>
-                  {gallery.status}
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setUploadTarget(gallery)}
-                >
-                  <Upload className="size-3.5" />
-                  Upload
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => copyClientLink(gallery)}
-                >
-                  <Link2 className="size-3.5" />
-                  Client link
-                </Button>
-                <RowActions
-                  onEdit={() => openEditDialog(gallery)}
-                  onDelete={() => setDeleteTarget(gallery)}
-                />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {galleries.map((g, i) => (
+          <Card key={g.id} className="flex flex-col overflow-hidden pt-0">
+            <div className="relative h-40 w-full overflow-hidden bg-muted">
+              <img
+                src={g.cover || GALLERY_COVERS[i % GALLERY_COVERS.length]}
+                alt={g.title}
+                loading="lazy"
+                className="size-full object-cover transition-transform duration-300 hover:scale-105"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+              <Badge className={cn(statusTone(g.status), 'absolute right-2 top-2 shadow-sm')} variant="secondary">{g.status}</Badge>
+              <div className="absolute bottom-2 left-2 flex gap-2 text-[11px] font-medium text-white">
+                <span className="inline-flex items-center gap-1 rounded-md bg-black/35 px-1.5 py-0.5 backdrop-blur-sm"><ImageIcon className="size-3" />{g.photoCount}</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-black/35 px-1.5 py-0.5 backdrop-blur-sm"><Film className="size-3" />{g.videoCount}</span>
               </div>
             </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <UploadMediaDialog
-        gallery={uploadTarget}
-        onOpenChange={(open) => !open && setUploadTarget(null)}
-        onUpload={handleUpload}
-      />
-
-      <EntityFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        title={editingGallery ? 'Edit Project' : 'Add Project'}
-        description={
-          editingGallery
-            ? 'Update this gallery project and save your changes.'
-            : 'Add a new gallery project.'
-        }
-        fields={galleryFields}
-        defaultValues={editingGallery ?? emptyGallery}
-        onSubmit={handleSubmit}
-        submitLabel={editingGallery ? 'Save changes' : 'Add project'}
-      />
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete this project?"
-        description={
-          deleteTarget
-            ? `"${deleteTarget.title}" will be permanently removed. This cannot be undone.`
-            : ''
-        }
-        onConfirm={handleDelete}
-      />
-    </div>
-  )
-}
-
-function UploadMediaDialog({ gallery, onOpenChange, onUpload }) {
-  const inputRef = useRef(null)
-  const [files, setFiles] = useState([])
-  const [dragOver, setDragOver] = useState(false)
-
-  const close = () => {
-    onOpenChange(false)
-    setFiles([])
-    setDragOver(false)
-  }
-
-  const addFiles = (fileList) => {
-    const incoming = [...fileList].filter(
-      (file) => file.type.startsWith('image') || file.type.startsWith('video')
-    )
-    if (!incoming.length) return
-    setFiles((prev) => {
-      const names = new Set(prev.map((file) => file.name))
-      return [...prev, ...incoming.filter((file) => !names.has(file.name))]
-    })
-  }
-
-  const removeFile = (name) => {
-    setFiles((prev) => prev.filter((file) => file.name !== name))
-  }
-
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    if (!files.length) return
-    onUpload(files)
-    close()
-  }
-
-  const photoCount = files.filter((file) => !file.type.startsWith('video')).length
-  const videoCount = files.length - photoCount
-
-  return (
-    <Dialog open={!!gallery} onOpenChange={(value) => !value && close()}>
-      <DialogContent className="sm:max-w-md">
-        {gallery && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Upload Photos & Videos</DialogTitle>
-              <DialogDescription>
-                Add media to "{gallery.title}". (Demo: files are counted, not stored.)
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleSubmit} className="contents">
-              <div className="flex flex-col gap-4 py-1">
-                <input
-                  ref={inputRef}
-                  type="file"
-                  multiple
-                  accept="image/*,video/*"
-                  className="hidden"
-                  onChange={(event) => {
-                    addFiles(event.target.files)
-                    event.target.value = ''
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => inputRef.current?.click()}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    setDragOver(true)
-                  }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    setDragOver(false)
-                    addFiles(event.dataTransfer.files)
-                  }}
-                  className={cn(
-                    'flex flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-border px-4 py-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/40',
-                    dragOver && 'border-primary bg-primary/5'
-                  )}
-                >
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <ImageIcon className="size-5" />
-                    <Film className="size-5" />
-                  </span>
-                  <span className="text-sm font-medium">Click to browse photos & videos</span>
-                  <span className="text-xs text-muted-foreground">
-                    or drag & drop them here — JPG, PNG, MP4, MOV...
-                  </span>
-                </button>
-
-                {files.length > 0 && (
-                  <div className="flex max-h-44 flex-col gap-1.5 overflow-y-auto">
-                    {files.map((file) => {
-                      const isVideo = file.type.startsWith('video')
-                      return (
-                        <div
-                          key={file.name}
-                          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"
-                        >
-                          {isVideo ? (
-                            <Film className="size-4 shrink-0 text-muted-foreground" />
-                          ) : (
-                            <ImageIcon className="size-4 shrink-0 text-muted-foreground" />
-                          )}
-                          <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
-                          <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
-                            {isVideo ? 'Video' : 'Photo'}
-                          </Badge>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            {formatFileSize(file.size)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => removeFile(file.name)}
-                            className="shrink-0 text-muted-foreground/60 hover:text-destructive"
-                          >
-                            <X className="size-4" />
-                            <span className="sr-only">Remove {file.name}</span>
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+            <CardContent className="flex flex-1 flex-col gap-3 p-4">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{g.title}</p>
+                <p className="truncate text-xs text-muted-foreground">{g.client}</p>
               </div>
+              <p className="text-xs text-muted-foreground">
+                {g.photographer}{g.deliveredDate ? ` · delivered ${formatDate(g.deliveredDate)}` : ''}
+              </p>
+              <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
+                <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => toast.success(`Opening ${g.title} in Pixieset.`)}>
+                  <ExternalLink className="size-3.5" />Open
+                </Button>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => startEdit(g)}>Edit</Button>
+                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(g)}>Delete</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={close}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={!files.length} className="gap-1.5">
-                  <Upload className="size-4" />
-                  Upload
-                  {files.length > 0 && (
-                    <span className="text-xs opacity-80">
-                      ({photoCount > 0 && `${photoCount} photo${photoCount !== 1 ? 's' : ''}`}
-                      {photoCount > 0 && videoCount > 0 && ', '}
-                      {videoCount > 0 && `${videoCount} video${videoCount !== 1 ? 's' : ''}`})
-                    </span>
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+      <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this gallery?" description={deleteTarget ? `"${deleteTarget.title}" will be removed.` : ''}
+        confirmLabel="Delete" onConfirm={removeNow} />
+    </div>
   )
 }

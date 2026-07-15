@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Download, Eye, FileText, History, Image } from 'lucide-react'
+import { Download, Eye, FileText, History, Image, FolderOpen, Files } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/common/PageHeader'
+import { StatStrip } from '@/components/common/StatStrip'
 import {
   Card,
   CardContent,
@@ -20,14 +21,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { documents } from '@/data/documents'
-import { events } from '@/data/events'
+import { useAuth } from '@/hooks/use-auth'
+import { resolveClient } from '@/lib/client-scope'
 import { formatDate } from '@/lib/utils'
 
 export default function ClientDocuments() {
-  const event = events[0]
+  const { user, brand } = useAuth()
+  const { me } = resolveClient(brand, user?.name)
   const sharedDocs = useMemo(
-    () => documents.filter((doc) => doc.sharedWithClient && doc.client === event.client),
-    [event.client]
+    () => documents.filter((doc) => doc.sharedWithClient && doc.client === me?.name),
+    [me?.name]
   )
   const folders = useMemo(
     () => [...new Set(sharedDocs.map((doc) => doc.folder))],
@@ -57,6 +60,12 @@ export default function ClientDocuments() {
         title="Documents"
         description="Files shared with you by the planning team."
       />
+
+      <StatStrip items={[
+        { label: 'Shared files', value: sharedDocs.length, icon: Files, accent: 'navy' },
+        { label: 'Folders', value: folders.length, icon: FolderOpen, accent: 'primary' },
+        { label: 'Downloaded', value: downloads.length, icon: Download, accent: 'secondary' },
+      ]} />
 
       <Card>
         <CardHeader>
@@ -98,9 +107,9 @@ export default function ClientDocuments() {
             >
               <div className="flex min-w-0 items-center gap-3">
                 {doc.name.match(/\.(png|jpe?g|gif)$/i) ? (
-                  <Image className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary/10 text-secondary"><Image className="size-4" /></span>
                 ) : (
-                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText className="size-4" /></span>
                 )}
                 <div className="min-w-0">
                   <p className="truncate font-medium">{doc.name}</p>

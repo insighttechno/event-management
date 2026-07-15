@@ -33,3 +33,10 @@ export function nextSequentialId(items, prefix) {
   }, 0);
   return `${prefix}-${max + 1}`;
 }
+
+// Whole days from today until `date` (never negative).
+export function daysUntil(date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.ceil((new Date(date) - today) / 86400000));
+}

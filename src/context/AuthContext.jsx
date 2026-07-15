@@ -4,6 +4,7 @@ import { demoUsers } from '@/data/users'
 
 const ROLE_KEY = 'fa-portal-role'
 const PROFILE_KEY = 'fa-portal-profile-overrides'
+const BRAND_KEY = 'fa-portal-brand'
 
 function getInitials(name) {
   return name
@@ -16,6 +17,7 @@ function getInitials(name) {
 
 export function AuthProvider({ children }) {
   const [role, setRoleState] = useState(() => localStorage.getItem(ROLE_KEY))
+  const [brand, setBrandState] = useState(() => localStorage.getItem(BRAND_KEY) || 'family-affair')
   const [profileOverrides, setProfileOverrides] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(PROFILE_KEY)) ?? {}
@@ -36,6 +38,10 @@ export function AuthProvider({ children }) {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profileOverrides))
   }, [profileOverrides])
 
+  useEffect(() => {
+    if (brand) localStorage.setItem(BRAND_KEY, brand)
+  }, [brand])
+
   const updateProfile = (updates) => {
     if (!role) return
     setProfileOverrides((prev) => ({
@@ -50,8 +56,10 @@ export function AuthProvider({ children }) {
 
   const value = {
     role,
+    brand,
     user: role ? { ...demoUsers[role], ...profileOverrides[role] } : null,
     setRole: setRoleState,
+    setBrand: setBrandState,
     updateProfile,
     logout: () => setRoleState(null),
   }

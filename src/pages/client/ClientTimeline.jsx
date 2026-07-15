@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { CheckCircle2, Circle, Clock, MessageSquarePlus, Truck } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, MessageSquarePlus, Truck, CalendarHeart, ListChecks, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
+import { StatStrip } from '@/components/common/StatStrip'
 import {
   Card,
   CardContent,
@@ -21,11 +22,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { events } from '@/data/events'
-import { formatDate } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
+import { resolveClient } from '@/lib/client-scope'
+import { formatDate, daysUntil } from '@/lib/utils'
 
-// Demo day-of schedule with vendor arrivals (no backend yet).
-const dayOfSchedule = [
+// Wedding-day run of show with vendor arrivals (Family Affair / planning brands).
+const weddingDaySchedule = [
   { time: '10:00 AM', title: 'Vendor load-in begins', detail: 'Key West Tents & Events — arch, chairs and lighting setup', type: 'vendor' },
   { time: '12:30 PM', title: 'Florals arrive', detail: 'Coral Blooms Florals — ceremony arch and centerpieces', type: 'vendor' },
   { time: '1:00 PM', title: 'Hair & makeup', detail: 'Bridal suite at Casa Marina Resort', type: 'event' },
@@ -38,24 +40,40 @@ const dayOfSchedule = [
   { time: '10:30 PM', title: 'Send-off', detail: 'Sparkler exit', type: 'event' },
 ]
 
+// Shoot-day schedule for photography brands (Senses At Play / gallery).
+const shootDaySchedule = [
+  { time: '4:30 PM', title: 'Golden-hour arrival', detail: 'Meet your photographer on location', type: 'event' },
+  { time: '4:45 PM', title: 'Warm-up & candids', detail: 'Relaxed shots to help you settle in', type: 'event' },
+  { time: '5:15 PM', title: 'Couple portraits', detail: 'Posed and natural portraits along the shoreline', type: 'event' },
+  { time: '5:45 PM', title: 'Second look', detail: 'Optional outfit change', type: 'event' },
+  { time: '6:15 PM', title: 'Sunset session', detail: 'The very best light of the day', type: 'event' },
+  { time: '6:45 PM', title: 'Wrap & next steps', detail: 'We walk you through your gallery delivery timeline', type: 'event' },
+]
+
 export default function ClientTimeline() {
-  const event = events[0]
+  const { user, brand } = useAuth()
+  const { cfg, event } = resolveClient(brand, user?.name)
+  const isGallery = cfg.kind === 'gallery'
+  const schedule = isGallery ? shootDaySchedule : weddingDaySchedule
+
   const [requestOpen, setRequestOpen] = useState(false)
   const [requests, setRequests] = useState([])
+  const milestones = event.milestones ?? []
+  const doneCount = milestones.filter((m) => m.done).length
 
   const submitRequest = (message) => {
     setRequests((prev) => [
       ...prev,
       { id: prev.length + 1, message, date: new Date().toISOString().slice(0, 10), status: 'Pending' },
     ])
-    toast.success('Change request sent to your planner.')
+    toast.success('Change request sent to your team.')
   }
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Event Timeline"
-        description="Key milestones leading up to your big day."
+        title={isGallery ? 'Session timeline' : 'Event timeline'}
+        description={isGallery ? 'Your session milestones and shoot-day flow.' : 'Key milestones leading up to your big day.'}
         action={
           <Button onClick={() => setRequestOpen(true)} className="gap-1.5">
             <MessageSquarePlus className="size-4" />
@@ -64,10 +82,24 @@ export default function ClientTimeline() {
         }
       />
 
+      <StatStrip items={
+        isGallery
+          ? [
+            { label: 'Milestones done', value: `${doneCount}/${milestones.length}`, icon: ListChecks, accent: 'secondary' },
+            { label: 'Shoot day', value: formatDate(event.date), icon: Camera, accent: 'primary' },
+            { label: 'Shoot-day steps', value: schedule.length, icon: Clock, accent: 'navy' },
+          ]
+          : [
+            { label: 'Days to go', value: daysUntil(event.date), icon: CalendarHeart, accent: 'primary' },
+            { label: 'Milestones done', value: `${doneCount}/${milestones.length}`, icon: ListChecks, accent: 'secondary' },
+            { label: 'Run of show', value: schedule.length, icon: Clock, accent: 'navy' },
+          ]
+      } />
+
       <Tabs defaultValue="planning">
         <TabsList>
-          <TabsTrigger value="planning">Planning milestones</TabsTrigger>
-          <TabsTrigger value="dayof">Day-of schedule</TabsTrigger>
+          <TabsTrigger value="planning">{isGallery ? 'Session milestones' : 'Planning milestones'}</TabsTrigger>
+          <TabsTrigger value="dayof">{isGallery ? 'Shoot-day schedule' : 'Day-of schedule'}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="planning" className="mt-4">
@@ -80,7 +112,7 @@ export default function ClientTimeline() {
             </CardHeader>
             <CardContent>
               <ol className="space-y-4 border-l border-border pl-5">
-                {event.milestones.map((milestone) => (
+                {milestones.map((milestone) => (
                   <li key={milestone.title} className="relative">
                     <span className="absolute -left-[1.65rem] flex size-4 items-center justify-center rounded-full bg-background">
                       {milestone.done ? (
@@ -107,15 +139,15 @@ export default function ClientTimeline() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="size-5 text-muted-foreground" />
-                Day-of Schedule
+                {isGallery ? 'Shoot-day schedule' : 'Day-of schedule'}
               </CardTitle>
               <CardDescription>
-                {formatDate(event.date)} — detailed run of show with vendor arrivals
+                {formatDate(event.date)} — {isGallery ? 'how your session flows, hour by hour' : 'detailed run of show with vendor arrivals'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ol className="space-y-1">
-                {dayOfSchedule.map((item) => (
+                {schedule.map((item) => (
                   <li
                     key={`${item.time}-${item.title}`}
                     className="flex gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50"
@@ -148,7 +180,7 @@ export default function ClientTimeline() {
           <CardHeader>
             <CardTitle className="text-base">Your change requests</CardTitle>
             <CardDescription>
-              {requests.length} request{requests.length > 1 ? 's' : ''} sent to your planner
+              {requests.length} request{requests.length > 1 ? 's' : ''} sent to your team
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -176,12 +208,13 @@ export default function ClientTimeline() {
         open={requestOpen}
         onOpenChange={setRequestOpen}
         onSubmit={submitRequest}
+        isGallery={isGallery}
       />
     </div>
   )
 }
 
-function ChangeRequestDialog({ open, onOpenChange, onSubmit }) {
+function ChangeRequestDialog({ open, onOpenChange, onSubmit, isGallery }) {
   const [message, setMessage] = useState('')
 
   const submit = (e) => {
@@ -197,15 +230,17 @@ function ChangeRequestDialog({ open, onOpenChange, onSubmit }) {
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit} className="contents">
           <DialogHeader>
-            <DialogTitle>Request a timeline change</DialogTitle>
+            <DialogTitle>Request a change</DialogTitle>
             <DialogDescription>
-              Tell your planner what you'd like to adjust — they'll review and get back to you.
+              Tell your team what you'd like to adjust — they'll review and get back to you.
             </DialogDescription>
           </DialogHeader>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="e.g. Could we move the first look 30 minutes earlier?"
+            placeholder={isGallery
+              ? 'e.g. Could we start the session a little earlier for the light?'
+              : 'e.g. Could we move the first look 30 minutes earlier?'}
             rows={4}
             required
           />

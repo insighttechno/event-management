@@ -103,6 +103,7 @@ function EntityForm({ fields, defaultValues, onSubmit, onOpenChange, submitLabel
                 type={field.type ?? 'text'}
                 step={field.step}
                 min={field.min}
+                max={field.max}
                 value={values[field.name] ?? ''}
                 onChange={(event) => handleChange(field.name, event.target.value)}
                 placeholder={field.placeholder}

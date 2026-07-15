@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch image staging — sources already live in public/images
+.tmp_images
+
+# Archives / backups
+*.zip

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { CreditCard, Download, History, Lock } from 'lucide-react'
+import { CreditCard, Download, History, Lock, Wallet, BadgeCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
+import { StatStrip } from '@/components/common/StatStrip'
 import {
   Card,
   CardContent,
@@ -22,7 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { events } from '@/data/events'
+import { useAuth } from '@/hooks/use-auth'
+import { resolveClient } from '@/lib/client-scope'
 import { invoices } from '@/data/finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
@@ -43,11 +45,14 @@ const initialHistory = [
 ]
 
 export default function ClientInvoices() {
-  const event = events[0]
+  const { user, brand } = useAuth()
+  const { me } = resolveClient(brand, user?.name)
   const [myInvoices, setMyInvoices] = useState(
-    invoices.filter((i) => i.event === event.name)
+    invoices.filter((i) => i.client === me?.name)
   )
-  const [history, setHistory] = useState(initialHistory)
+  const [history, setHistory] = useState(
+    initialHistory.filter((h) => invoices.some((i) => i.id === h.invoiceId && i.client === me?.name))
+  )
   const [payTarget, setPayTarget] = useState(null)
 
   const recordPayment = (invoice, amount) => {
@@ -82,6 +87,18 @@ export default function ClientInvoices() {
         title="Invoices & Payments"
         description="View balances and payment history for your event."
       />
+
+      {(() => {
+        const billed = myInvoices.reduce((s, i) => s + i.amount, 0)
+        const paid = myInvoices.reduce((s, i) => s + i.paid, 0)
+        return (
+          <StatStrip items={[
+            { label: 'Total billed', value: formatCurrency(billed), icon: CreditCard, accent: 'navy' },
+            { label: `Paid · ${billed ? Math.round((paid / billed) * 100) : 0}%`, value: formatCurrency(paid), icon: BadgeCheck, accent: 'secondary' },
+            { label: 'Outstanding', value: formatCurrency(billed - paid), icon: Wallet, accent: 'accent' },
+          ]} />
+        )
+      })()}
 
       <div className="space-y-4">
         {myInvoices.map((invoice) => {

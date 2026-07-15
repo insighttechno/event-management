@@ -30,14 +30,20 @@ export const demoUsers = {
 export const teamModules = [
   'Dashboard',
   'Leads',
+  'Calendar & Meetings',
+  'Clients',
+  'Packages',
+  'Contracts',
+  'Invoices & Payments',
   'Events',
-  'Vendors',
   'Tasks',
   'Documents',
   'Gallery',
-  'Payments',
-  'Timeline',
+  'Vendors',
+  'Reports',
+  'Brands',
   'Team',
+  'Settings',
 ]
 
 export const teamMembers = [
@@ -61,7 +67,7 @@ export const teamMembers = [
     email: 'marco@familyaffairkeywest.com',
     phone: '(305) 555-0102',
     status: 'Active',
-    modules: ['Dashboard', 'Leads', 'Events', 'Vendors', 'Tasks', 'Timeline'],
+    modules: ['Dashboard', 'Leads', 'Calendar & Meetings', 'Events', 'Vendors', 'Tasks'],
   },
   {
     id: 'U-3',
@@ -72,7 +78,7 @@ export const teamMembers = [
     email: 'natalie@familyaffairkeywest.com',
     phone: '(305) 555-0103',
     status: 'Active',
-    modules: ['Dashboard', 'Leads', 'Events', 'Tasks', 'Documents', 'Timeline'],
+    modules: ['Dashboard', 'Leads', 'Clients', 'Events', 'Documents', 'Tasks'],
   },
   {
     id: 'U-4',
@@ -83,7 +89,7 @@ export const teamMembers = [
     email: 'liam@familyaffairkeywest.com',
     phone: '(305) 555-0104',
     status: 'Active',
-    modules: ['Dashboard', 'Leads', 'Documents', 'Payments'],
+    modules: ['Dashboard', 'Leads', 'Clients', 'Contracts', 'Invoices & Payments'],
   },
   {
     id: 'U-5',
@@ -94,6 +100,6 @@ export const teamMembers = [
     email: 'john@sensesatplay.com',
     phone: '(305) 555-0105',
     status: 'Invited',
-    modules: ['Dashboard', 'Tasks', 'Gallery', 'Timeline'],
+    modules: ['Dashboard', 'Calendar & Meetings', 'Tasks', 'Gallery'],
   },
 ]

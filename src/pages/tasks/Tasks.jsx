@@ -1,266 +1,226 @@
-import { useMemo, useState } from 'react'
-import { BellRing, GripVertical, Plus, Send } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Check, CircleAlert, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/common/PageHeader'
-import { EntityFormDialog } from '@/components/common/EntityFormDialog'
+import { BackHeader } from '@/components/common/BackHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { RowActions } from '@/components/common/RowActions'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 import { tasks as initialTasks, taskStatuses } from '@/data/tasks'
-import { formatDate, nextSequentialId } from '@/lib/utils'
-
-const priorityVariant = {
-  High: 'destructive',
-  Medium: 'secondary',
-  Low: 'outline',
-}
+import { formatDate } from '@/lib/utils'
 
 const priorities = ['High', 'Medium', 'Low']
 
-const taskFields = [
-  { name: 'title', label: 'Task title', span: 'full', required: true },
-  { name: 'event', label: 'Related event', span: 'full' },
-  { name: 'assignedTo', label: 'Assigned to' },
-  { name: 'dueDate', label: 'Due date', type: 'date' },
-  { name: 'status', label: 'Status', type: 'select', options: taskStatuses },
-  { name: 'priority', label: 'Priority', type: 'select', options: priorities },
-]
+const priorityTone = (p) =>
+  p === 'High' ? 'bg-destructive/15 text-destructive'
+    : p === 'Medium' ? 'bg-amber-500/15 text-amber-700'
+    : 'bg-muted text-muted-foreground'
 
-const emptyTask = {
-  title: '',
-  event: '',
-  assignedTo: '',
-  dueDate: '',
-  status: 'To Do',
-  priority: 'Medium',
-}
+const statusTone = (s) =>
+  s === 'Done' ? 'bg-emerald-500/15 text-emerald-700'
+    : s === 'In Progress' ? 'bg-primary/15 text-primary'
+    : 'bg-muted text-muted-foreground'
 
-function dueStatus(task) {
-  if (!task.dueDate || task.status === 'Completed') return null
-  const today = new Date().toISOString().slice(0, 10)
-  if (task.dueDate < today) return 'overdue'
-  if (task.dueDate === today) return 'today'
-  return null
-}
+const isOverdue = (t) => t.status !== 'Done' && t.dueDate && t.dueDate < new Date().toISOString().slice(0, 10)
+
+const emptyForm = { title: '', event: '', assignedTo: '', dueDate: '', priority: 'Medium', status: 'To Do' }
 
 export default function Tasks() {
   const [tasks, setTasks] = useState(initialTasks)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState(null)
+  const [view, setView] = useState('list')
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [confirmSave, setConfirmSave] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [dragOverStatus, setDragOverStatus] = useState(null)
 
-  const dueTasks = useMemo(
-    () => tasks.filter((task) => dueStatus(task)).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
-    [tasks]
-  )
+  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
+  const startEdit = (t) => { setEditing(t); setForm({ ...t }); setView('form') }
 
-  const moveTaskToStatus = (taskId, status) => {
-    const task = tasks.find((item) => item.id === taskId)
-    if (!task || task.status === status) return
-    setTasks((prev) => prev.map((item) => (item.id === taskId ? { ...item, status } : item)))
-    toast.success(`"${task.title}" moved to ${status}.`)
-  }
-
-  const sendReminder = (task) => {
-    toast.success(`Reminder sent to ${task.assignedTo} for "${task.title}".`)
-  }
-
-  const openAddDialog = () => {
-    setEditingTask(null)
-    setFormOpen(true)
-  }
-
-  const openEditDialog = (task) => {
-    setEditingTask(task)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = (values) => {
-    if (editingTask) {
-      setTasks((prev) =>
-        prev.map((task) => (task.id === editingTask.id ? { ...task, ...values } : task))
-      )
-      toast.success(`Task "${values.title}" updated.`)
+  const saveNow = () => {
+    if (editing) {
+      setTasks((prev) => prev.map((t) => (t.id === editing.id ? { ...t, ...form } : t)))
+      toast.success('Task updated.')
     } else {
-      const newTask = {
-        ...values,
-        id: nextSequentialId(tasks, 'T'),
-      }
-      setTasks((prev) => [newTask, ...prev])
-      toast.success(`Task "${values.title}" added.`)
+      const id = `T-${500 + tasks.length + 10}`
+      setTasks((prev) => [{ ...form, id }, ...prev])
+      toast.success('Task added.')
     }
+    setView('list')
   }
 
-  const handleDelete = () => {
-    setTasks((prev) => prev.filter((task) => task.id !== deleteTarget.id))
-    toast.success(`Task "${deleteTarget.title}" deleted.`)
+  const removeNow = () => {
+    setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id))
+    toast.success('Task deleted.')
   }
 
+  const toggleDone = (t) => {
+    const done = t.status === 'Done'
+    setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, status: done ? 'To Do' : 'Done' } : x)))
+    toast.success(done ? 'Task reopened.' : 'Task marked done.')
+  }
+
+  const overdue = tasks.filter(isOverdue)
+  const openTasks = tasks.filter((t) => t.status !== 'Done')
+
+  // ---------- In-page form ----------
+  if (view === 'form') {
+    return (
+      <div className="max-w-4xl">
+        <BackHeader
+          title={editing ? 'Edit task' : 'New task'}
+          description="Assign work to your team and track it to done."
+          backLabel="Back to tasks"
+          onBack={() => setView('list')}
+        />
+        <Card>
+          <CardContent className="grid gap-5 p-6 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Task *</Label>
+              <Input value={form.title} onChange={(e) => setField('title', e.target.value)} placeholder="Confirm catering headcount" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Related event</Label>
+              <Input value={form.event} onChange={(e) => setField('event', e.target.value)} placeholder="Whitfield Wedding" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Assigned to</Label>
+              <Input value={form.assignedTo} onChange={(e) => setField('assignedTo', e.target.value)} placeholder="Marco Diaz" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Due date</Label>
+              <Input type="date" value={form.dueDate} onChange={(e) => setField('dueDate', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Priority</Label>
+              <Select value={form.priority} onValueChange={(v) => setField('priority', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{priorities.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setField('status', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{taskStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 sm:col-span-2">
+              <Button variant="outline" onClick={() => setView('list')}>Cancel</Button>
+              <Button className="gap-1.5" disabled={!form.title.trim()} onClick={() => setConfirmSave(true)}>
+                <Check className="size-4" />{editing ? 'Save changes' : 'Add task'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <ConfirmDialog
+          open={confirmSave}
+          onOpenChange={setConfirmSave}
+          title={editing ? 'Save changes?' : 'Add this task?'}
+          description={`"${form.title || 'New task'}" will be ${editing ? 'updated' : 'added'}.`}
+          confirmLabel={editing ? 'Save' : 'Add'}
+          confirmVariant="default"
+          onConfirm={saveNow}
+        />
+      </div>
+    )
+  }
+
+  // ---------- List ----------
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Task & Team Management"
-        description="Internal tasks, assignments, due dates and reminders."
-        action={
-          <Button onClick={openAddDialog} className="gap-1.5">
-            <Plus className="size-4" />
-            Add Task
-          </Button>
-        }
+        title="Tasks"
+        description="Assign and track everything your team needs to do across both brands."
+        action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />Add task</Button>}
       />
 
-      {dueTasks.length > 0 && (
+      {overdue.length > 0 && (
         <Card className="border-amber-500/40 bg-amber-500/5">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BellRing className="size-4 text-amber-600" />
-              Due reminders
-            </CardTitle>
-            <CardDescription>
-              {dueTasks.length} task{dueTasks.length > 1 ? 's' : ''} overdue or due today
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2 text-base"><CircleAlert className="size-4 text-amber-600" />Overdue tasks</CardTitle>
+            <CardDescription>{overdue.length} task{overdue.length > 1 ? 's' : ''} past their due date</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {dueTasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2"
-              >
+            {overdue.map((t) => (
+              <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{task.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {task.event} · {task.assignedTo}
-                  </p>
+                  <p className="truncate text-sm font-medium">{t.title}</p>
+                  <p className="text-xs text-muted-foreground">{t.event} · {t.assignedTo} · due {formatDate(t.dueDate)}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={dueStatus(task) === 'overdue' ? 'destructive' : 'secondary'}>
-                    {dueStatus(task) === 'overdue'
-                      ? `Overdue · ${formatDate(task.dueDate)}`
-                      : 'Due today'}
-                  </Badge>
-                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => sendReminder(task)}>
-                    <Send className="size-3.5" />
-                    Remind
-                  </Button>
-                </div>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toggleDone(t)}>
+                  <CheckCircle2 className="size-3.5" />Mark done
+                </Button>
               </div>
             ))}
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {taskStatuses.map((status) => {
-          const items = tasks.filter((task) => task.status === status)
-          return (
-            <Card
-              key={status}
-              className={cn(
-                'transition-colors',
-                dragOverStatus === status && 'border-primary bg-primary/5'
-              )}
-              onDragOver={(event) => {
-                event.preventDefault()
-                setDragOverStatus(status)
-              }}
-              onDragLeave={() => setDragOverStatus(null)}
-              onDrop={(event) => {
-                event.preventDefault()
-                setDragOverStatus(null)
-                moveTaskToStatus(event.dataTransfer.getData('text/plain'), status)
-              }}
-            >
-              <CardHeader>
-                <CardTitle className="text-base">{status}</CardTitle>
-                <CardDescription>{items.length} tasks · drag cards to update</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {items.map((task) => {
-                  const due = dueStatus(task)
-                  return (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(event) => event.dataTransfer.setData('text/plain', task.id)}
-                      className="group cursor-grab rounded-lg border border-border bg-card p-3 text-sm shadow-xs transition-shadow hover:shadow-sm active:cursor-grabbing"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-1.5">
-                          <GripVertical className="mt-0.5 size-4 shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground" />
-                          <p className="font-medium leading-snug">{task.title}</p>
-                        </div>
-                        <RowActions
-                          className="-mt-1 -mr-1 shrink-0"
-                          onEdit={() => openEditDialog(task)}
-                          onDelete={() => setDeleteTarget(task)}
-                        />
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{task.event}</p>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
-                        <span
-                          className={cn(
-                            'flex items-center gap-1 text-xs',
-                            due === 'overdue'
-                              ? 'font-medium text-destructive'
-                              : due === 'today'
-                                ? 'font-medium text-amber-600'
-                                : 'text-muted-foreground'
-                          )}
-                        >
-                          {due && <BellRing className="size-3" />}
-                          {task.dueDate ? formatDate(task.dueDate) : 'No due date'}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
-                {items.length === 0 && (
-                  <p className="rounded-lg border border-dashed border-border px-2 py-6 text-center text-xs text-muted-foreground">
-                    Drop tasks here
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      <EntityFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        title={editingTask ? 'Edit Task' : 'Add Task'}
-        description={
-          editingTask
-            ? 'Update this task and save your changes.'
-            : 'Create a new internal task.'
-        }
-        fields={taskFields}
-        defaultValues={editingTask ?? emptyTask}
-        onSubmit={handleSubmit}
-        submitLabel={editingTask ? 'Save changes' : 'Add task'}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>All tasks</CardTitle>
+          <CardDescription>{openTasks.length} open · {tasks.length - openTasks.length} done</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10" />
+                <TableHead>Task</TableHead>
+                <TableHead>Event</TableHead>
+                <TableHead>Assigned to</TableHead>
+                <TableHead>Due</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.map((t) => (
+                <TableRow key={t.id} className={t.status === 'Done' ? 'opacity-60' : ''}>
+                  <TableCell>
+                    <button type="button" onClick={() => toggleDone(t)} title="Toggle done"
+                      className={`flex size-5 items-center justify-center rounded-full border ${t.status === 'Done' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border'}`}>
+                      {t.status === 'Done' && <Check className="size-3.5" />}
+                    </button>
+                  </TableCell>
+                  <TableCell className={`font-medium ${t.status === 'Done' ? 'line-through' : ''}`}>{t.title}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{t.event}</TableCell>
+                  <TableCell className="text-sm">{t.assignedTo}</TableCell>
+                  <TableCell>
+                    {t.dueDate
+                      ? <span className={`text-sm ${isOverdue(t) ? 'font-medium text-destructive' : ''}`}>{formatDate(t.dueDate)}</span>
+                      : <span className="text-xs text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell><Badge className={priorityTone(t.priority)} variant="secondary">{t.priority}</Badge></TableCell>
+                  <TableCell><Badge className={statusTone(t.status)} variant="secondary">{t.status}</Badge></TableCell>
+                  <TableCell><RowActions onEdit={() => startEdit(t)} onDelete={() => setDeleteTarget(t)} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete this task?"
-        description={
-          deleteTarget
-            ? `"${deleteTarget.title}" will be permanently removed. This cannot be undone.`
-            : ''
-        }
-        onConfirm={handleDelete}
+        description={deleteTarget ? `"${deleteTarget.title}" will be removed.` : ''}
+        confirmLabel="Delete"
+        onConfirm={removeNow}
       />
     </div>
   )

@@ -1,360 +1,162 @@
-import { useMemo, useState } from 'react'
-import { Mail, Phone, Plus, Search, Star } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Check, Star, Mail, Phone } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
-import { EntityFormDialog } from '@/components/common/EntityFormDialog'
+import { BackHeader } from '@/components/common/BackHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { RowActions } from '@/components/common/RowActions'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import {
-  vendors as initialVendors,
-  vendorCategories,
-  vendorCommunications,
-} from '@/data/vendors'
-import { events, eventVendorAssignments } from '@/data/events'
-import { formatDate, nextSequentialId } from '@/lib/utils'
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { vendors as initialVendors, vendorCategories } from '@/data/vendors'
 
-const vendorFields = [
-  { name: 'name', label: 'Vendor name', span: 'full', required: true },
-  { name: 'category', label: 'Category', type: 'select', options: vendorCategories },
-  { name: 'contact', label: 'Contact person' },
-  { name: 'phone', label: 'Phone' },
-  { name: 'email', label: 'Email', type: 'email' },
-  { name: 'rating', label: 'Rating', type: 'number', min: 0, max: 5, step: '0.1' },
-  { name: 'eventsCount', label: 'Events worked', type: 'number', min: 0 },
-  { name: 'notes', label: 'Notes', type: 'textarea', span: 'full' },
-]
-
-const emptyVendor = {
-  name: '',
-  category: vendorCategories[0],
-  contact: '',
-  phone: '',
-  email: '',
-  rating: '',
-  eventsCount: '',
-  notes: '',
-}
-
-function assignedEventsFor(vendorId) {
-  return events.filter((event) =>
-    (eventVendorAssignments[event.id] ?? []).includes(vendorId)
-  )
+const emptyForm = {
+  name: '', category: 'Florist', contact: '', phone: '', email: '', rating: 4.5, notes: '',
 }
 
 export default function Vendors() {
   const [vendors, setVendors] = useState(initialVendors)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingVendor, setEditingVendor] = useState(null)
+  const [view, setView] = useState('list')
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [confirmSave, setConfirmSave] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [profileVendorId, setProfileVendorId] = useState(null)
 
-  const profileVendor = vendors.find((vendor) => vendor.id === profileVendorId) ?? null
+  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const startAdd = () => { setEditing(null); setForm(emptyForm); setView('form') }
+  const startEdit = (v) => { setEditing(v); setForm({ ...v }); setView('form') }
 
-  const filteredVendors = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return vendors.filter((vendor) => {
-      if (categoryFilter !== 'all' && vendor.category !== categoryFilter) return false
-      if (!query) return true
-      return [vendor.name, vendor.contact, vendor.email, vendor.category]
-        .join(' ')
-        .toLowerCase()
-        .includes(query)
-    })
-  }, [vendors, search, categoryFilter])
-
-  const openAddDialog = () => {
-    setEditingVendor(null)
-    setFormOpen(true)
-  }
-
-  const openEditDialog = (vendor) => {
-    setEditingVendor(vendor)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = (values) => {
-    const payload = {
-      ...values,
-      rating: Number(values.rating) || 0,
-      eventsCount: Number(values.eventsCount) || 0,
-    }
-
-    if (editingVendor) {
-      setVendors((prev) =>
-        prev.map((vendor) => (vendor.id === editingVendor.id ? { ...vendor, ...payload } : vendor))
-      )
+  const saveNow = () => {
+    const payload = { ...form, rating: Number(form.rating) || 0 }
+    if (editing) {
+      setVendors((prev) => prev.map((v) => (v.id === editing.id ? { ...v, ...payload } : v)))
       toast.success(`Vendor "${payload.name}" updated.`)
     } else {
-      const newVendor = {
-        ...payload,
-        id: nextSequentialId(vendors, 'V'),
-      }
-      setVendors((prev) => [newVendor, ...prev])
+      setVendors((prev) => [{ ...payload, id: `V-${100 + vendors.length + 10}`, eventsCount: 0 }, ...prev])
       toast.success(`Vendor "${payload.name}" added.`)
     }
+    setView('list')
   }
 
-  const handleDelete = () => {
-    setVendors((prev) => prev.filter((vendor) => vendor.id !== deleteTarget.id))
-    toast.success(`Vendor "${deleteTarget.name}" deleted.`)
+  const removeNow = () => {
+    setVendors((prev) => prev.filter((v) => v.id !== deleteTarget.id))
+    toast.success(`Vendor "${deleteTarget.name}" removed.`)
+  }
+
+  if (view === 'form') {
+    return (
+      <div className="max-w-5xl">
+        <BackHeader title={editing ? 'Edit vendor' : 'New vendor'} backLabel="Back to vendors"
+          onBack={() => setView('list')} description="Keep your preferred vendors and their contact details handy." />
+        <Card>
+          <CardContent className="grid gap-5 p-6 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Vendor name</Label>
+              <Input value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="Coral Blooms Florals" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={form.category} onValueChange={(v) => setField('category', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{vendorCategories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Contact person</Label>
+              <Input value={form.contact} onChange={(e) => setField('contact', e.target.value)} placeholder="Lena Ortiz" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input type="email" value={form.email} onChange={(e) => setField('email', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Rating (0–5)</Label>
+              <Input type="number" min={0} max={5} step={0.1} value={form.rating} onChange={(e) => setField('rating', e.target.value)} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Notes</Label>
+              <Textarea rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2 sm:col-span-2">
+              <Button variant="outline" onClick={() => setView('list')}>Cancel</Button>
+              <Button className="gap-1.5" disabled={!form.name.trim()} onClick={() => setConfirmSave(true)}>
+                <Check className="size-4" />{editing ? 'Save changes' : 'Add vendor'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <ConfirmDialog open={confirmSave} onOpenChange={setConfirmSave}
+          title={editing ? 'Save changes?' : 'Add this vendor?'}
+          description={`"${form.name || 'New vendor'}" will be ${editing ? 'updated' : 'added to your directory'}.`}
+          confirmLabel={editing ? 'Save' : 'Add'} confirmVariant="default" onConfirm={saveNow} />
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Vendor Management"
-        description="Trusted vendors and partners across both businesses."
-        action={
-          <Button onClick={openAddDialog} className="gap-1.5">
-            <Plus className="size-4" />
-            Add Vendor
-          </Button>
-        }
-      />
+      <PageHeader title="Vendors" description="Your trusted vendor directory across both brands."
+        action={<Button className="gap-1.5" onClick={startAdd}><Plus className="size-4" />New vendor</Button>} />
 
       <Card>
         <CardHeader>
-          <CardTitle>Vendor Directory</CardTitle>
-          <CardDescription>
-            {filteredVendors.length} of {vendors.length} vendors shown
-          </CardDescription>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <div className="relative min-w-48 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search vendors..."
-                className="pl-8"
-              />
-            </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {vendorCategories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CardTitle>All vendors</CardTitle>
+          <CardDescription>{vendors.length} vendors on record</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {filteredVendors.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No vendors match your search.
-            </p>
-          )}
-          {filteredVendors.map((vendor) => (
-            <div
-              key={vendor.id}
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-muted/40"
-            >
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-secondary/10 text-sm font-semibold text-secondary">
-                {vendor.name
-                  .split(' ')
-                  .slice(0, 2)
-                  .map((part) => part[0])
-                  .join('')}
-              </div>
-              <div className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  className="text-left font-medium leading-tight hover:underline"
-                  onClick={() => setProfileVendorId(vendor.id)}
-                >
-                  {vendor.name}
-                </button>
-                <p className="truncate text-xs text-muted-foreground">
-                  {vendor.contact} · {vendor.phone}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Star className="size-3.5 fill-accent text-accent" />
-                  {vendor.rating}
-                </span>
-                <span className="hidden text-sm text-muted-foreground sm:inline">
-                  {vendor.eventsCount} events
-                </span>
-                <Badge variant="secondary">{vendor.category}</Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setProfileVendorId(vendor.id)}
-                >
-                  Profile
-                </Button>
-                <RowActions
-                  onEdit={() => openEditDialog(vendor)}
-                  onDelete={() => setDeleteTarget(vendor)}
-                />
-              </div>
-            </div>
-          ))}
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Vendor</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Rating</TableHead>
+                <TableHead>Events</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {vendors.map((v) => (
+                <TableRow key={v.id}>
+                  <TableCell className="font-medium">{v.name}</TableCell>
+                  <TableCell><Badge variant="outline">{v.category}</Badge></TableCell>
+                  <TableCell>
+                    <p className="text-sm">{v.contact}</p>
+                    <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1"><Phone className="size-3" />{v.phone}</span>
+                      <span className="inline-flex items-center gap-1"><Mail className="size-3" />{v.email}</span>
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 text-sm font-medium">
+                      <Star className="size-3.5 fill-amber-400 text-amber-400" />{v.rating}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{v.eventsCount}</TableCell>
+                  <TableCell><RowActions onEdit={() => startEdit(v)} onDelete={() => setDeleteTarget(v)} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      <VendorProfileSheet
-        vendor={profileVendor}
-        onOpenChange={(open) => !open && setProfileVendorId(null)}
-        onEdit={() => {
-          openEditDialog(profileVendor)
-          setProfileVendorId(null)
-        }}
-      />
-
-      <EntityFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        title={editingVendor ? 'Edit Vendor' : 'Add Vendor'}
-        description={
-          editingVendor
-            ? 'Update this vendor and save your changes.'
-            : 'Add a new vendor to the directory.'
-        }
-        fields={vendorFields}
-        defaultValues={editingVendor ?? emptyVendor}
-        onSubmit={handleSubmit}
-        submitLabel={editingVendor ? 'Save changes' : 'Add vendor'}
-      />
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete this vendor?"
-        description={
-          deleteTarget
-            ? `"${deleteTarget.name}" will be removed from the directory. This cannot be undone.`
-            : ''
-        }
-        onConfirm={handleDelete}
-      />
+      <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Remove this vendor?" description={deleteTarget ? `"${deleteTarget.name}" will be removed from your directory.` : ''}
+        confirmLabel="Remove" onConfirm={removeNow} />
     </div>
-  )
-}
-
-function VendorProfileSheet({ vendor, onOpenChange, onEdit }) {
-  const assignedEvents = vendor ? assignedEventsFor(vendor.id) : []
-  const communications = vendor ? (vendorCommunications[vendor.id] ?? []) : []
-
-  return (
-    <Sheet open={!!vendor} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-        {vendor && (
-          <>
-            <SheetHeader>
-              <SheetTitle>{vendor.name}</SheetTitle>
-              <SheetDescription>
-                {vendor.category} · {vendor.eventsCount} events worked
-              </SheetDescription>
-            </SheetHeader>
-
-            <div className="flex flex-col gap-5 px-4 pb-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{vendor.category}</Badge>
-                <Badge variant="outline" className="gap-1">
-                  <Star className="size-3 fill-accent text-accent" />
-                  {vendor.rating}
-                </Badge>
-              </div>
-
-              <div className="grid gap-2 text-sm">
-                <p className="font-medium">{vendor.contact}</p>
-                <p className="flex items-center gap-2">
-                  <Mail className="size-4 text-muted-foreground" />
-                  {vendor.email || '—'}
-                </p>
-                <p className="flex items-center gap-2">
-                  <Phone className="size-4 text-muted-foreground" />
-                  {vendor.phone || '—'}
-                </p>
-              </div>
-
-              {vendor.notes && (
-                <div className="rounded-lg bg-muted/50 p-3 text-sm">{vendor.notes}</div>
-              )}
-
-              <Button size="sm" variant="outline" className="self-start" onClick={onEdit}>
-                Edit vendor
-              </Button>
-
-              <div>
-                <h3 className="mb-2 text-sm font-semibold">Assigned events</h3>
-                {assignedEvents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Not assigned to any events yet. Assign vendors from an event's detail page.
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {assignedEvents.map((event) => (
-                      <div key={event.id} className="rounded-lg border border-border p-3">
-                        <p className="text-sm font-medium">{event.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(event.date)} · {event.venue}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className="mb-2 text-sm font-semibold">Communication history</h3>
-                {communications.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No communications logged yet.</p>
-                ) : (
-                  <ol className="relative flex flex-col gap-3 border-l border-border pl-4">
-                    {communications.map((entry) => (
-                      <li key={entry.id} className="relative">
-                        <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-card bg-primary" />
-                        <p className="text-sm">
-                          <span className="font-medium">{entry.type}</span>
-                          <span className="text-muted-foreground">
-                            {' '}
-                            · {formatDate(entry.date)} · {entry.by}
-                          </span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">{entry.summary}</p>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
   )
 }

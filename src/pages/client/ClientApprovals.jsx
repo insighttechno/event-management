@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Check, History, MessageSquare, X } from 'lucide-react'
+import { Check, History, MessageSquare, X, FileText, CalendarClock, FolderOpen, Image as ImageIcon, ClipboardCheck, CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
+import { StatStrip } from '@/components/common/StatStrip'
 import {
   Card,
   CardContent,
@@ -20,13 +21,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { approvals as initialApprovals } from '@/data/finance'
+import { useAuth } from '@/hooks/use-auth'
+import { resolveClient } from '@/lib/client-scope'
+import { approvals as allApprovals } from '@/data/finance'
 import { formatDate } from '@/lib/utils'
 
 const statusVariant = {
   Approved: 'secondary',
   Pending: 'destructive',
   'Changes Requested': 'outline',
+}
+
+const typeIcon = {
+  Contract: FileText,
+  Timeline: CalendarClock,
+  Document: FolderOpen,
+  Gallery: ImageIcon,
 }
 
 // Dummy version history per approval request (no backend yet).
@@ -45,11 +55,14 @@ const versionHistory = {
     { version: 'v2', note: 'Added second bar station.', date: '2026-06-04' },
     { version: 'v1', note: 'Initial beach layout.', date: '2026-05-28' },
   ],
-  'A-4': [{ version: 'v1', note: 'Gallery release for engagement photos.', date: '2026-04-01' }],
+  'A-4': [{ version: 'v1', note: 'Gallery release for engagement photos.', date: '2026-07-04' }],
+  'A-5': [{ version: 'v1', note: 'Select your favourites for prints & album.', date: '2026-07-06' }],
 }
 
 export default function ClientApprovals() {
-  const [approvals, setApprovals] = useState(initialApprovals)
+  const { user, brand } = useAuth()
+  const { me } = resolveClient(brand, user?.name)
+  const [approvals, setApprovals] = useState(allApprovals.filter((a) => a.client === me?.name))
   const [comments, setComments] = useState({})
   const [actionTarget, setActionTarget] = useState(null) // { item, action: 'approve' | 'changes' }
   const [historyTarget, setHistoryTarget] = useState(null)
@@ -82,6 +95,12 @@ export default function ClientApprovals() {
         description="Review and approve contracts, timelines, documents and galleries."
       />
 
+      <StatStrip items={[
+        { label: 'Pending review', value: pendingCount, icon: ClipboardCheck, accent: 'accent' },
+        { label: 'Approved', value: approvals.filter((a) => a.status === 'Approved').length, icon: CheckCheck, accent: 'secondary' },
+        { label: 'Total requests', value: approvals.length, icon: History, accent: 'navy' },
+      ]} />
+
       <Card>
         <CardHeader>
           <CardTitle>Approval Requests</CardTitle>
@@ -90,14 +109,19 @@ export default function ClientApprovals() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {approvals.map((item) => (
+          {approvals.map((item) => {
+            const TypeIcon = typeIcon[item.type] ?? FileText
+            return (
             <div key={item.id} className="rounded-lg border border-border p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.type} &middot; {formatDate(item.date)}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><TypeIcon className="size-4" /></span>
+                  <div>
+                    <p className="text-sm font-medium">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.type} &middot; {formatDate(item.date)}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={statusVariant[item.status] ?? 'outline'}>{item.status}</Badge>
@@ -142,7 +166,7 @@ export default function ClientApprovals() {
                 </div>
               )}
             </div>
-          ))}
+          )})}
         </CardContent>
       </Card>
 

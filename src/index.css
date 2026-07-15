@@ -134,5 +134,13 @@
     }
   html {
     @apply font-sans;
+    font-size: 16.5px;
+    }
+  /* Tailwind v4 drops the native button pointer — restore it everywhere */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  a {
+    cursor: pointer;
     }
 }
