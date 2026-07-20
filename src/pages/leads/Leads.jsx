@@ -1,6 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { BellRing, GripVertical, Plus, Send, Check } from 'lucide-react'
+import { BellRing, Plus, Send, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -51,7 +50,6 @@ export default function Leads() {
   )
   const [confirmSave, setConfirmSave] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [dragOverStage, setDragOverStage] = useState(null)
 
   // Filters live in the URL, so a filtered view is bookmarkable, linkable from
   // the dashboard and survives a refresh. The table is CONTROLLED from here so
@@ -111,13 +109,6 @@ export default function Leads() {
   const removeNow = () => {
     removeLead(deleteTarget.id)
     toast.success(`Lead "${deleteTarget.name}" deleted.`)
-  }
-
-  const moveLeadToStage = (leadId, stage) => {
-    const lead = leads.find((l) => l.id === leadId)
-    if (!lead || lead.stage === stage) return
-    updateLead(leadId, { stage })
-    toast.success(`"${lead.name}" moved to ${stage}.`)
   }
 
   const sendReminder = (lead) => toast.success(`Follow-up reminder sent to ${lead.assignedTo} for "${lead.name}".`)
@@ -334,91 +325,38 @@ export default function Leads() {
         </div>
       )}
 
-      <Tabs defaultValue="table">
-        <TabsList>
-          <TabsTrigger value="table">Table view</TabsTrigger>
-          <TabsTrigger value="board">Pipeline board</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="board" className="mt-4">
-          <div className="flex gap-3 overflow-x-auto pb-3">
-            {leadStages.map((stage) => {
-              const stageLeads = brandLeads.filter((l) => l.stage === stage)
-              return (
-                <div key={stage}
-                  className={cn('flex w-64 shrink-0 flex-col gap-2 rounded-xl border border-border bg-muted/40 p-2 transition-colors',
-                    dragOverStage === stage && 'border-primary bg-primary/5')}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverStage(stage) }}
-                  onDragLeave={() => setDragOverStage(null)}
-                  onDrop={(e) => { e.preventDefault(); setDragOverStage(null); moveLeadToStage(e.dataTransfer.getData('text/plain'), stage) }}
-                >
-                  <div className="flex items-center justify-between px-2 pt-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{stage}</p>
-                    <Badge variant="secondary">{stageLeads.length}</Badge>
-                  </div>
-                  {stageLeads.map((lead) => (
-                    <div key={lead.id} draggable
-                      onDragStart={(e) => e.dataTransfer.setData('text/plain', lead.id)}
-                      onClick={() => openDetail(lead)}
-                      className="group cursor-grab rounded-lg border border-border bg-card p-3 shadow-xs transition-shadow hover:shadow-sm active:cursor-grabbing">
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <p className="truncate text-sm font-medium leading-tight">{lead.name}</p>
-                          {isNewLead(lead) && <Badge variant="secondary" className="shrink-0 bg-emerald-500/15 px-1 text-[9px] font-semibold text-emerald-600">New</Badge>}
-                        </div>
-                        <GripVertical className="size-4 shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground" />
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{lead.eventType}</p>
-                      <div className="mt-2 flex items-center justify-between gap-1">
-                        <span className="text-xs font-semibold">{formatCurrency(lead.value)}</span>
-                        <BrandBadge brand={lead.brand} className="px-1.5 text-[10px]" />
-                      </div>
-                    </div>
-                  ))}
-                  {stageLeads.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-border px-2 py-6 text-center text-xs text-muted-foreground">Drop leads here</p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="table" className="mt-4">
-          <DataTable
-            title={followUpOnly ? 'Follow-ups due' : 'All leads'}
-            columns={columns}
-            rows={displayLeads}
-            onRowClick={openDetail}
-            searchKeys={['name', 'email', 'phone', 'eventType', 'source', 'assignedTo']}
-            searchPlaceholder="Search by name, email, event type…"
-            filterValues={filterValues}
-            onFilterValuesChange={handleFilterChange}
-            filters={[
-              { key: 'brand', label: 'Brand', options: packageBrands },
-              { key: 'stage', label: 'Stage', options: leadStages },
-              {
-                key: 'followUp',
-                label: 'Follow-up',
-                options: [
-                  { label: 'Due now (overdue + today)', value: 'due' },
-                  { label: 'Overdue', value: 'overdue' },
-                  { label: 'Due today', value: 'today' },
-                  { label: 'Upcoming', value: 'upcoming' },
-                  { label: 'No follow-up set', value: 'none' },
-                ],
-                match: (lead, value) => {
-                  const s = followUpStatus(lead)
-                  if (value === 'due') return ['overdue', 'today'].includes(s)
-                  if (value === 'none') return s === null
-                  return s === value
-                },
-              },
-            ]}
-            emptyMessage="No leads yet — inquiries from the website land here."
-          />
-        </TabsContent>
-      </Tabs>
+      <DataTable
+        title={followUpOnly ? 'Follow-ups due' : 'All leads'}
+        columns={columns}
+        rows={displayLeads}
+        onRowClick={openDetail}
+        searchKeys={['name', 'email', 'phone', 'eventType', 'source', 'assignedTo']}
+        searchPlaceholder="Search by name, email, event type…"
+        filterValues={filterValues}
+        onFilterValuesChange={handleFilterChange}
+        filters={[
+          { key: 'brand', label: 'Brand', options: packageBrands },
+          { key: 'stage', label: 'Stage', options: leadStages },
+          {
+            key: 'followUp',
+            label: 'Follow-up',
+            options: [
+              { label: 'Due now (overdue + today)', value: 'due' },
+              { label: 'Overdue', value: 'overdue' },
+              { label: 'Due today', value: 'today' },
+              { label: 'Upcoming', value: 'upcoming' },
+              { label: 'No follow-up set', value: 'none' },
+            ],
+            match: (lead, value) => {
+              const s = followUpStatus(lead)
+              if (value === 'due') return ['overdue', 'today'].includes(s)
+              if (value === 'none') return s === null
+              return s === value
+            },
+          },
+        ]}
+        emptyMessage="No leads yet — inquiries from the website land here."
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}
